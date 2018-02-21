@@ -110,7 +110,7 @@ static int execute_parent(pid_t descendant_pid,
     }
 
     if (command->flag & BACKGROUND) {
-        printf("Background process ID: %ld\n", (long) descendant_pid);
+        fprintf(stderr, "Background process ID: %ld\n", (long) descendant_pid);
         return CONTINUE;
     }
 
@@ -127,8 +127,7 @@ static int execute_parent(pid_t descendant_pid,
         int status = 0;
         if (waitpid(current_pid, &status, WUNTRACED) != BAD_RESULT) {
             if (WIFSTOPPED(status) && (SIGTSTP == WSTOPSIG(status))) {
-                kill(current_pid, SIGCONT);
-                printf("Background process ID: %ld\n", (long) current_pid);
+                fprintf(stderr, "Background process ID: %ld\n", (long) current_pid);
             }
         } else {
             perror("Couldn't wait for child process termination");
