@@ -1,0 +1,13 @@
+# Build stuff
+/cmake*/
+/build/*
+
+# Run stuff
+/channel/*
+*.exe
+
+# Idea
+/.idea/*
+
+# cmake specification
+!CMakeLists.txt
