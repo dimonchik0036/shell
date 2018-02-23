@@ -19,9 +19,10 @@
 #define IN_FILE 8
 #define OUT_FILE 16
 
-
 #define TRUE 1
 #define FALSE 0
+
+#define BAD_RESULT (-1)
 
 
 struct Command_St {
