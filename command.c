@@ -8,7 +8,7 @@
 static char *string_copy(char const *str);
 
 
-Command *command_copy(Command *command) {
+Command *command_copy(Command const *command) {
     Command *new_command = malloc(sizeof(Command));
     check_memory(new_command);
 

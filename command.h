@@ -44,7 +44,7 @@ struct CommandLine_St {
 typedef struct CommandLine_St CommandLine;
 
 
-Command *command_copy(Command *command);
+Command *command_copy(Command const *command);
 
 void command_free(Command *command);
 
