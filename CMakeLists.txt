@@ -15,4 +15,6 @@ add_executable(shell
                job_control.c
                job_control.h
                command.c
-               command.h)
+               command.h
+               job.c
+               job.h)

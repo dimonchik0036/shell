@@ -8,27 +8,11 @@
 
 
 #include "command.h"
+#include "job.h"
 
 
 #define JOB_LIMIT 32
 
-
-#define STOPPED 1
-#define RUNNING 2
-#define DONE 4
-#define FAILED 8
-
-
-typedef int jid_t;
-
-struct Job_St {
-    jid_t jid;
-    pid_t pid;
-    Command *command;
-    char status;
-};
-
-typedef struct Job_St Job;
 
 struct JobController_St {
     Job *jobs[JOB_LIMIT];
@@ -47,7 +31,10 @@ void job_controller_init(JobController *controller);
 
 int job_controller_release(JobController *controller);
 
-int job_controller_add_job(JobController *controller, pid_t pid, Command *command);
+int job_controller_add_job(JobController *controller,
+                           pid_t pid,
+                           Command const *command,
+                           char status);
 
 int job_controller_remove_job(JobController *controller, jid_t jid);
 
