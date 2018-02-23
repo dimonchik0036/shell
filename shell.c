@@ -10,6 +10,10 @@
 
 
 int main(int argc, char *argv[]) {
+    return shell_run();
+}
+
+int shell_run() {
     CommandLine command_line;
 
     signal(SIGINT, SIG_IGN);

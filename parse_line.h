@@ -2,7 +2,7 @@
 #define PARSE_LINE_H
 
 
-#include "shell.h"
+#include "command.h"
 
 
 #define BAD_SYNTAX (-1)

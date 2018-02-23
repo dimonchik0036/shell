@@ -2,7 +2,7 @@
 #define EXECUTE_H
 
 
-#include "shell.h"
+#include "command.h"
 
 
 #define EXIT 1
