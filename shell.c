@@ -53,3 +53,10 @@ int shell_run() {
 
     return EXIT_SUCCESS;
 }
+
+void check_memory(void *src) {
+    if (!src) {
+        fprintf(stderr, "Couldn't allocate memory\n");
+        exit(EXIT_FAILURE);
+    }
+}

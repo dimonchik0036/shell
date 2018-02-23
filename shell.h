@@ -22,5 +22,7 @@
 
 int shell_run();
 
+void check_memory(void *src);
+
 
 #endif //SHELL_H
