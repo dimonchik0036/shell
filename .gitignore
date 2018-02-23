@@ -1,6 +1,7 @@
 # Build stuff
 /cmake*/
 /build/*
+*.o
 
 # Run stuff
 /channel/*
