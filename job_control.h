@@ -45,7 +45,11 @@ void job_controller_free(JobController *controller);
 
 void job_controller_init(JobController *controller);
 
-void job_controller_add_job(pid_t pid, Command *command);
+int job_controller_release(JobController *controller);
+
+int job_controller_add_job(JobController *controller, pid_t pid, Command *command);
+
+int job_controller_remove_job(JobController *controller, jid_t jid);
 
 
 #endif //JOB_CONTROL_H
