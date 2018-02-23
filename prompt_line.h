@@ -1,3 +1,8 @@
+/*
+ * Copyright © 2018 Dimonchik0036. All rights reserved.
+ */
+
+
 #ifndef PROMPT_LINE_H
 #define PROMPT_LINE_H
 

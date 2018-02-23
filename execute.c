@@ -1,3 +1,8 @@
+/*
+ * Copyright © 2018 Dimonchik0036. All rights reserved.
+ */
+
+
 #include <signal.h>
 #include <fcntl.h>
 #include <wait.h>

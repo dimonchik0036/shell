@@ -1,3 +1,8 @@
+/*
+ * Copyright © 2018 Dimonchik0036. All rights reserved.
+ */
+
+
 #include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
