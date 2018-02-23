@@ -19,21 +19,9 @@
 #define IN_FILE 8
 #define OUT_FILE 16
 
-#define EXIT 1
-#define CONTINUE 0
-#define CRASH (-1)
-#define STOP 2
-
-#define BAD_RESULT (-1)
-#define BAD_SYNTAX (-1)
-
-#define BAD_PID (-1)
-#define DESCENDANT_PID 0
 
 #define TRUE 1
 #define FALSE 0
-
-#define PROMPT_LINE "(*_*)$>"
 
 
 struct Command_St {
@@ -56,13 +44,6 @@ struct CommandLine_St {
 };
 
 typedef struct CommandLine_St CommandLine;
-
-
-ssize_t prompt_line(char *line, size_t line_size);
-
-int parse_input_line(char *line, CommandLine *command_line);
-
-int execute_command_line(CommandLine *command_line, int number_of_commands);
 
 
 #endif //SHELL_H

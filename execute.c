@@ -1,7 +1,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <wait.h>
-#include "shell.h"
+#include "execute.h"
 
 
 static int execute_parent(pid_t descendant_pid,
@@ -88,6 +88,7 @@ static int custom_exec(Command *command) {
 
         return STOP;
     } else if (!strcmp(command_name, "exit")) {
+        //TODO signal(all process, SIGHUP)
         return EXIT;
     }
 
@@ -163,6 +164,11 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
             return CRASH;
         }
         signal(SIGTTOU, SIG_DFL);
+    }
+
+    if (command->flag & BACKGROUND) {
+        signal(SIGINT, SIG_IGN);
+        signal(SIGQUIT, SIG_IGN);
     }
 
     if ((command->flag & IN_FILE) && command->infile) {

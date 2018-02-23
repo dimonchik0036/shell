@@ -2,7 +2,11 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "shell.h"
+#include "prompt_line.h"
+#include "parse_line.h"
+#include "execute.h"
 
 
 int main(int argc, char *argv[]) {
@@ -29,6 +33,7 @@ int main(int argc, char *argv[]) {
             default:
                 return EXIT_FAILURE;
         }
+
     }
 
     if (number_of_read < 0) {

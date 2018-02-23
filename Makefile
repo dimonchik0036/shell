@@ -1,8 +1,8 @@
 CC=gcc
 CFLAGS=-c -Wall
-HEADERS=shell.h
-SOURCES=execute.c parse_line.c prompt_line.c shell.c
+SOURCES=execute.c parse_line.c prompt_line.c shell.c job_control.c
 OBJECTS=$(SOURCES:.c=.o)
+HEADERS=$(SOURCES:.c=.h)
 EXECUTABLE=myshell
 
 
