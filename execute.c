@@ -129,7 +129,7 @@ static int execute_parent(JobController *controller,
     if (command->flag & BACKGROUND) {
         jid_t jid = job_controller_add_job(controller, descendant_pid, command,
                                            JOB_RUNNING);
-        fprintf(stderr, "[%d] Background process ID: %d\n", jid, descendant_pid);
+        fprintf(stderr, "[%d] Background process ID: %d\n", jid, (int)descendant_pid);
         return CONTINUE;
     }
 
@@ -148,7 +148,7 @@ static int execute_parent(JobController *controller,
             if (WIFSTOPPED(status)) {
                 jid_t jid = job_controller_add_job(controller, current_pid, command,
                                                    JOB_STOPPED);
-                fprintf(stderr, "[%d] Background process ID: %d\n", jid, current_pid);
+                fprintf(stderr, "[%d] Background process ID: %d\n", jid, (int)current_pid);
                 break;
             }
         } else {

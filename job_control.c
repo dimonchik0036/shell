@@ -69,7 +69,8 @@ int job_controller_remove_job_by_index(JobController *controller, size_t index) 
 }
 
 int job_controller_release(JobController *controller) {
-    for (size_t index = 0; index < controller->number_of_jobs; ++index) {
+    size_t index;
+    for (index = 0; index < controller->number_of_jobs; ++index) {
         Job *current_job = controller->jobs[index];
         kill(current_job->pid, SIGHUP);
     }
@@ -78,7 +79,8 @@ int job_controller_release(JobController *controller) {
 }
 
 void job_controller_print_all_jobs(JobController *controller) {
-    for (size_t index = 0; index < controller->number_of_jobs; ++index) {
+    size_t index;
+    for (index = 0; index < controller->number_of_jobs; ++index) {
         Job *current_job = controller->jobs[index];
         printf("[%d] %s %s\n", current_job->jid, job_get_status(current_job->status),
                command_get_string(current_job->command));
@@ -86,7 +88,8 @@ void job_controller_print_all_jobs(JobController *controller) {
 }
 
 void job_controller_print_current_status(JobController *controller) {
-    for (size_t index = 0; index < controller->number_of_jobs; ++index) {
+    size_t index;
+    for (index = 0; index < controller->number_of_jobs; ++index) {
         Job *current_job = controller->jobs[index];
         int status;
         pid_t answer = waitpid(-current_job->pid, &status, WNOHANG | WUNTRACED);
