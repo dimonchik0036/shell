@@ -36,5 +36,9 @@ void job_swap(Job **lhs, Job **rhs);
 
 char *job_get_status(char status);
 
+void job_kill(Job *job, int signal);
+
+void job_print(Job *job, FILE *file);
+
 
 #endif //JOB_H

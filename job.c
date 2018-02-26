@@ -3,6 +3,7 @@
  */
 
 
+#include <signal.h>
 #include "job.h"
 
 
@@ -32,6 +33,10 @@ void job_swap(Job **lhs, Job **rhs) {
     *rhs = tmp;
 }
 
+void job_kill(Job *job, int signal) {
+    kill(job->pid, signal);
+}
+
 char *job_get_status(char status) {
     switch (status) {
         case JOB_STOPPED:
@@ -45,4 +50,9 @@ char *job_get_status(char status) {
         default:
             return "WTF?!";
     }
+}
+
+void job_print(Job *job, FILE *file) {
+    fprintf(file, "[%d] %s %s\n", job->jid, job_get_status(job->status),
+           command_get_string(job->command));
 }

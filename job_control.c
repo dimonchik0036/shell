@@ -3,9 +3,9 @@
  */
 
 
-#include <signal.h>
-#include <wait.h>
 #include "job_control.h"
+
+#include <wait.h>
 
 
 JobController *job_controller_create() {
@@ -96,16 +96,18 @@ void job_controller_print_current_status(JobController *controller) {
         if (answer == BAD_RESULT) {
             perror("shell: job controller");
         } else if (!answer) {
+            continue;
         } else if (WIFEXITED(status)) {
             current_job->status = JOB_DONE;
-            printf("[%d] %s %s\n", current_job->jid, job_get_status(current_job->status),
-                   command_get_string(current_job->command));
+            job_print(current_job, stdout);
             job_controller_remove_job_by_index(controller, index);
             --index;
         } else if (WIFSTOPPED(status)) {
             current_job->status = JOB_STOPPED;
-            printf("[%d] %s %s\n", current_job->jid, job_get_status(current_job->status),
-                   command_get_string(current_job->command));
+            job_print(current_job, stdout);
+        } else if (WIFCONTINUED(status)) {
+            current_job->status = JOB_RUNNING;
+            job_print(current_job, stdout);
         }
     }
 }

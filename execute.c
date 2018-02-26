@@ -3,10 +3,11 @@
  */
 
 
-#include <signal.h>
+#include "execute.h"
+#include "builtin.h"
+
 #include <fcntl.h>
 #include <wait.h>
-#include "execute.h"
 
 
 static int execute_parent(JobController *controller,
@@ -22,8 +23,6 @@ static int set_outfile(char *outfile, char addfile);
 
 static int use_dup2(int fd, int fd2, char *error);
 
-static int custom_exec(JobController *controller, Command *command);
-
 static int system_exec(JobController *controller,
                        CommandLine *command_line,
                        Command *command);
@@ -38,7 +37,7 @@ int execute_command_line(JobController *controller,
         Command *current_command = &command_line->commands[command_index];
         command_line->current_pipeline_index = command_index;
 
-        int answer = custom_exec(controller, current_command);
+        int answer = builtin_exec(controller, current_command);
         switch (answer) {
             case EXIT:
                 return answer;
@@ -84,30 +83,6 @@ static int system_exec(JobController *controller,
         default:
             return execute_parent(controller, pid, command_line, command);
     }
-}
-
-
-static int custom_exec(JobController *controller, Command *command) {
-    char *command_name = command->arguments[0];
-    if (!strcmp(command_name, "cd")) {
-        if (command->arguments[1] && command->arguments[2]) {
-            fprintf(stderr, "cd: too many arguments");
-            return CRASH;
-        } else if (chdir(command->arguments[1]) == BAD_RESULT) {
-            perror("cd");
-            return CRASH;
-        }
-
-        return STOP;
-    } else if (!strcmp(command_name, "jobs")) {
-        job_controller_print_all_jobs(controller);
-        return STOP;
-    } else if (!strcmp(command_name, "exit")) {
-        job_controller_release(controller);
-        return EXIT;
-    }
-
-    return CONTINUE;
 }
 
 static int execute_parent(JobController *controller,
