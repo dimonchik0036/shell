@@ -6,6 +6,7 @@
 #include "job_control.h"
 
 #include <wait.h>
+#include <signal.h>
 
 
 JobController *job_controller_create() {

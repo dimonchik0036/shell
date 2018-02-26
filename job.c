@@ -53,6 +53,6 @@ char *job_get_status(char status) {
 }
 
 void job_print(Job *job, FILE *file) {
-    fprintf(file, "[%d] %s %s\n", job->jid, job_get_status(job->status),
+    fprintf(file, "\n[%d] %s %s\n", job->jid, job_get_status(job->status),
            command_get_string(job->command));
 }
