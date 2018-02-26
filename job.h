@@ -10,10 +10,10 @@
 #include "command.h"
 
 
-#define STOPPED 1
-#define RUNNING 2
-#define DONE 4
-#define FAILED 8
+#define JOB_STOPPED 1
+#define JOB_RUNNING 2
+#define JOB_DONE 4
+#define JOB_FAILED 8
 
 
 typedef int jid_t;
@@ -31,6 +31,10 @@ typedef struct Job_St Job;
 Job *job_create(jid_t jid, pid_t pid, Command *command, char status);
 
 void job_free(Job *job);
+
+void job_swap(Job **lhs, Job **rhs);
+
+char *job_get_status(char status);
 
 
 #endif //JOB_H

@@ -25,3 +25,24 @@ void job_free(Job *job) {
     command_free(job->command);
     free(job);
 }
+
+void job_swap(Job **lhs, Job **rhs) {
+    Job *tmp = *lhs;
+    *lhs = *rhs;
+    *rhs = tmp;
+}
+
+char *job_get_status(char status) {
+    switch (status) {
+        case JOB_STOPPED:
+            return "Stopped";
+        case JOB_RUNNING:
+            return "Running";
+        case JOB_DONE:
+            return "Done";
+        case JOB_FAILED:
+            return "Failed";
+        default:
+            return "WTF?!";
+    }
+}

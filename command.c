@@ -43,6 +43,10 @@ void command_free(Command *command) {
     free(command);
 }
 
+char *command_get_string(Command *command) {
+    return command->arguments[0] ? command->arguments[0] : '\0';
+}
+
 static char *string_copy(char const *str) {
     if (!str) {
         return NULL;

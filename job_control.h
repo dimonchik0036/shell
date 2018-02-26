@@ -31,12 +31,21 @@ void job_controller_init(JobController *controller);
 
 int job_controller_release(JobController *controller);
 
-int job_controller_add_job(JobController *controller,
+jid_t job_controller_add_job(JobController *controller,
                            pid_t pid,
                            Command const *command,
                            char status);
 
-int job_controller_remove_job(JobController *controller, jid_t jid);
+
+int job_controller_remove_job_by_jid(JobController *controller, jid_t jid);
+
+int job_controller_remove_job_by_pid(JobController *controller, pid_t pid);
+
+int job_controller_remove_job_by_index(JobController *controller, size_t index);
+
+void job_controller_print_current_status(JobController *controller);
+
+void job_controller_print_all_jobs(JobController *controller);
 
 
 #endif //JOB_CONTROL_H

@@ -48,5 +48,7 @@ Command *command_copy(Command const *command);
 
 void command_free(Command *command);
 
+char *command_get_string(Command *command);
+
 
 #endif //COMMAND_H

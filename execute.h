@@ -8,6 +8,7 @@
 
 
 #include "command.h"
+#include "job_control.h"
 
 
 #define EXIT 1
@@ -19,7 +20,9 @@
 #define DESCENDANT_PID 0
 
 
-int execute_command_line(CommandLine *command_line, int number_of_commands);
+int execute_command_line(JobController *controller,
+                         CommandLine *command_line,
+                         int number_of_commands);
 
 
 #endif //EXECUTE_H

@@ -12,6 +12,7 @@
 #include "prompt_line.h"
 #include "parse_line.h"
 #include "execute.h"
+#include "job_control.h"
 
 
 int main(int argc, char *argv[]) {
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]) {
 
 int shell_run() {
     CommandLine command_line;
-
+    JobController *controller = job_controller_create();
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
 
@@ -31,10 +32,11 @@ int shell_run() {
          number_of_read = prompt_line(line, sizeof(line))) {
         int number_of_commands;
         if ((number_of_commands = parse_input_line(line, &command_line)) <= 0) {
+            job_controller_print_current_status(controller);
             continue;
         }
 
-        switch (execute_command_line(&command_line, number_of_commands)) {
+        switch (execute_command_line(controller, &command_line, number_of_commands)) {
             case CONTINUE:
                 break;
             case EXIT:
@@ -43,6 +45,7 @@ int shell_run() {
                 return EXIT_FAILURE;
         }
 
+        job_controller_print_current_status(controller);
     }
 
     if (number_of_read < 0) {
@@ -50,7 +53,7 @@ int shell_run() {
         return EXIT_FAILURE;
     }
 
-
+    job_controller_free(controller);
     return EXIT_SUCCESS;
 }
 

@@ -9,7 +9,8 @@
 #include "execute.h"
 
 
-static int execute_parent(pid_t descendant_pid,
+static int execute_parent(JobController *controller,
+                          pid_t descendant_pid,
                           CommandLine *command_line,
                           Command *command);
 
@@ -21,19 +22,23 @@ static int set_outfile(char *outfile, char addfile);
 
 static int use_dup2(int fd, int fd2, char *error);
 
-static int custom_exec(Command *command);
+static int custom_exec(JobController *controller, Command *command);
 
-static int system_exec(CommandLine *command_line, Command *command);
+static int system_exec(JobController *controller,
+                       CommandLine *command_line,
+                       Command *command);
 
 
-int execute_command_line(CommandLine *command_line, int number_of_commands) {
+int execute_command_line(JobController *controller,
+                         CommandLine *command_line,
+                         int number_of_commands) {
     int command_index;
     command_line->start_pipeline_index = 0;
     for (command_index = 0; command_index < number_of_commands; ++command_index) {
         Command *current_command = &command_line->commands[command_index];
         command_line->current_pipeline_index = command_index;
 
-        int answer = custom_exec(current_command);
+        int answer = custom_exec(controller, current_command);
         switch (answer) {
             case EXIT:
                 return answer;
@@ -44,7 +49,7 @@ int execute_command_line(CommandLine *command_line, int number_of_commands) {
                 continue;
         }
 
-        answer = system_exec(command_line, current_command);
+        answer = system_exec(controller, command_line, current_command);
         switch (answer) {
             case EXIT:
             case CRASH:
@@ -57,7 +62,9 @@ int execute_command_line(CommandLine *command_line, int number_of_commands) {
     return CONTINUE;
 }
 
-static int system_exec(CommandLine *command_line, Command *command) {
+static int system_exec(JobController *controller,
+                       CommandLine *command_line,
+                       Command *command) {
     if (command->flag & OUT_PIPE) {
         if (pipe(command_line->pipe_des) == BAD_RESULT) {
             perror("Couldn't create pipe");
@@ -75,12 +82,12 @@ static int system_exec(CommandLine *command_line, Command *command) {
             perror("Couldn't create process");
             return CRASH;
         default:
-            return execute_parent(pid, command_line, command);
+            return execute_parent(controller, pid, command_line, command);
     }
 }
 
 
-static int custom_exec(Command *command) {
+static int custom_exec(JobController *controller, Command *command) {
     char *command_name = command->arguments[0];
     if (!strcmp(command_name, "cd")) {
         if (command->arguments[1] && command->arguments[2]) {
@@ -92,15 +99,19 @@ static int custom_exec(Command *command) {
         }
 
         return STOP;
+    } else if (!strcmp(command_name, "jobs")) {
+        job_controller_print_all_jobs(controller);
+        return STOP;
     } else if (!strcmp(command_name, "exit")) {
-        //TODO signal(all process, SIGHUP)
+        job_controller_release(controller);
         return EXIT;
     }
 
     return CONTINUE;
 }
 
-static int execute_parent(pid_t descendant_pid,
+static int execute_parent(JobController *controller,
+                          pid_t descendant_pid,
                           CommandLine *command_line,
                           Command *command) {
     if (command->flag & IN_PIPE) {
@@ -116,7 +127,9 @@ static int execute_parent(pid_t descendant_pid,
     }
 
     if (command->flag & BACKGROUND) {
-        fprintf(stderr, "Background process ID: %ld\n", (long) descendant_pid);
+        jid_t jid = job_controller_add_job(controller, descendant_pid, command,
+                                           JOB_RUNNING);
+        fprintf(stderr, "[%d] Background process ID: %d\n", jid, descendant_pid);
         return CONTINUE;
     }
 
@@ -132,8 +145,11 @@ static int execute_parent(pid_t descendant_pid,
 
         int status = 0;
         if (waitpid(current_pid, &status, WUNTRACED) != BAD_RESULT) {
-            if (WIFSTOPPED(status) && (SIGTSTP == WSTOPSIG(status))) {
-                fprintf(stderr, "Background process ID: %ld\n", (long) current_pid);
+            if (WIFSTOPPED(status)) {
+                jid_t jid = job_controller_add_job(controller, current_pid, command,
+                                                   JOB_STOPPED);
+                fprintf(stderr, "[%d] Background process ID: %d\n", jid, current_pid);
+                break;
             }
         } else {
             perror("Couldn't wait for child process termination");
