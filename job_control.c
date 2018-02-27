@@ -83,7 +83,7 @@ int job_controller_release(JobController *controller) {
         kill(current_job->pid, SIGHUP);
     }
 
-    if (!controller->number_of_jobs) {
+    if (controller->number_of_jobs) {
         fprintf(stdout, "There are stopped jobs.\n");
     }
 
@@ -105,7 +105,7 @@ void job_controller_print_current_status(JobController *controller) {
 
         int status;
         pid_t answer = waitpid(-current_job->pid, &status, WNOHANG | WUNTRACED);
-        if (!answer || answer == BAD_RESULT) {
+        if (!answer || answer == BAD_RESULT || answer != current_job->pid) {
             continue;
         } else if (WIFEXITED(status)) {
             current_job->status = JOB_DONE;

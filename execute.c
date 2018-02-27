@@ -9,7 +9,6 @@
 
 #include <fcntl.h>
 #include <wait.h>
-#include <signal.h>
 
 
 static int execute_parent(JobController *controller,
@@ -105,10 +104,6 @@ static int execute_parent(JobController *controller,
     if (command->flag & OUT_PIPE) {
         return CONTINUE;
     }
-//
-//    if (setpgid(descendant_pid, 0) == BAD_RESULT) {
-//        perror("Couldn't set process group ID");
-//    }
 
     if (command->flag & BACKGROUND) {
         job_controller_add_job(controller, getpgid(descendant_pid), command, JOB_RUNNING);
