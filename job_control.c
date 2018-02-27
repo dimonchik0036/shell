@@ -122,3 +122,15 @@ void job_controller_print_current_status(JobController *controller) {
         }
     }
 }
+
+size_t job_controller_search_job_by_jid(JobController *controller, jid_t jid) {
+    size_t index;
+    for (index = 0; index < controller->number_of_jobs; ++index) {
+        Job *current_job = controller->jobs[index];
+        if (current_job->jid == jid) {
+            return index;
+        }
+    }
+
+    return (size_t) controller->number_of_jobs + 1;
+}

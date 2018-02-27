@@ -21,6 +21,10 @@ static int builtin_bg(JobController *controller, Command *command);
 
 static int builtin_exit(JobController *controller);
 
+static int builtin_jkill(JobController *controller, Command *command);
+
+static size_t job_get_index(JobController *controller, char *str);
+
 
 int builtin_exec(JobController *controller, Command *command) {
     char *command_name = command->arguments[0];
@@ -32,6 +36,8 @@ int builtin_exec(JobController *controller, Command *command) {
         return builtin_fg(controller, command);
     } else if (!strcmp(command_name, "bg")) {
         return builtin_bg(controller, command);
+    } else if (!strcmp(command_name, "jkill")) {
+        return builtin_jkill(controller, command);
     } else if (!strcmp(command_name, "exit")) {
         return builtin_exit(controller);
     }
@@ -63,13 +69,17 @@ static int builtin_exit(JobController *controller) {
 
 static int builtin_fg(JobController *controller, Command *command) {
     if (!controller->number_of_jobs) {
-        return STOP;
+        fprintf(stderr, "shell: fg: current: no such job\n");
+        return CRASH;
     }
 
-    size_t job_index = (size_t) (controller->number_of_jobs - 1);
+    size_t job_index = job_get_index(controller, command->arguments[1]);
+    if (job_index >= controller->number_of_jobs) {
+        fprintf(stderr, "shell: fg:  %s: no such job\n", command->arguments[1]);
+        return CRASH;
+    }
+
     Job *job = controller->jobs[job_index];
-
-
     if (terminal_set_stdin(job->pid) == BAD_RESULT) {
         return CRASH;
     }
@@ -102,12 +112,50 @@ static int builtin_fg(JobController *controller, Command *command) {
 
 static int builtin_bg(JobController *controller, Command *command) {
     if (!controller->number_of_jobs) {
-        return STOP;
+        fprintf(stderr, "shell: bg: current: no such job\n");
+        return CRASH;
     }
 
-    Job *last_job = controller->jobs[controller->number_of_jobs - 1];
-    job_kill(last_job, SIGCONT);
-    last_job->status = JOB_RUNNING;
-    job_print(last_job, stdout, "");
+    size_t job_index = job_get_index(controller, command->arguments[1]);
+    if (job_index >= controller->number_of_jobs) {
+        fprintf(stderr, "shell: bg:  %s: no such job\n", command->arguments[1]);
+        return CRASH;
+    }
+
+    Job *job = controller->jobs[job_index];
+    job_kill(job, SIGCONT);
+    job->status = JOB_RUNNING;
+    job_print(job, stdout, "");
     return STOP;
+}
+
+static int builtin_jkill(JobController *controller, Command *command) {
+    if (!controller->number_of_jobs) {
+        fprintf(stderr, "shell: jkill: current: no such job\n");
+        return CRASH;
+    }
+
+    size_t job_index = job_get_index(controller, command->arguments[1]);
+    if (job_index >= controller->number_of_jobs) {
+        fprintf(stderr, "shell: jkill:  %s: no such job\n", command->arguments[1]);
+        return CRASH;
+    }
+
+    Job *job = controller->jobs[job_index];
+    job_kill(job, SIGKILL);
+    fprintf(stdout, "Done\n");
+    job_controller_remove_job_by_index(controller, job_index);
+    return STOP;
+}
+
+static size_t job_get_index(JobController *controller, char *str) {
+    size_t job_index = (size_t) (controller->number_of_jobs - 1);
+    if (str) {
+        int jid = atoi(str);
+        if (jid) {
+            job_index = job_controller_search_job_by_jid(controller, jid);
+        }
+    }
+
+    return job_index;
 }

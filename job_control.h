@@ -43,6 +43,8 @@ int job_controller_remove_job_by_pid(JobController *controller, pid_t pid);
 
 int job_controller_remove_job_by_index(JobController *controller, size_t index);
 
+size_t job_controller_search_job_by_jid(JobController *controller, jid_t jid);
+
 void job_controller_print_current_status(JobController *controller);
 
 void job_controller_print_all_jobs(JobController *controller);
