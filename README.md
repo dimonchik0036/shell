@@ -21,3 +21,9 @@ make
 
 # Usage
 `./myshell`
+
+# Builtin commands
+`fg [%job]`  
+`bg [%job]`  
+`jobs`  
+`jkill [%job]`  
