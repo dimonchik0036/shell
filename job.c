@@ -52,7 +52,18 @@ char *job_get_status(char status) {
     }
 }
 
-void job_print(Job *job, FILE *file) {
-    fprintf(file, "\n[%d] %s %s\n", job->jid, job_get_status(job->status),
-           command_get_string(job->command));
+void job_print(Job *job, FILE *file, char *prefix) {
+    if (job->status & JOB_RUNNING) {
+        fprintf(file, "%s[%d] %s %s %s &\n",
+                prefix,
+                job->jid, job_get_status(job->status),
+                command_get_name(job->command),
+                command_get_args(job->command));
+    } else {
+        fprintf(file, "%s[%d] %s %s %s\n",
+                prefix,
+                job->jid, job_get_status(job->status),
+                command_get_name(job->command),
+                command_get_args(job->command));
+    }
 }

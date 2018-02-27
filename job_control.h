@@ -32,9 +32,9 @@ void job_controller_init(JobController *controller);
 int job_controller_release(JobController *controller);
 
 jid_t job_controller_add_job(JobController *controller,
-                           pid_t pid,
-                           Command const *command,
-                           char status);
+                             pid_t pid,
+                             Command const *command,
+                             char status);
 
 
 int job_controller_remove_job_by_jid(JobController *controller, jid_t jid);

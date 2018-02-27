@@ -5,6 +5,7 @@
 
 #include "builtin.h"
 #include "execute.h"
+#include "terminal.h"
 
 #include <signal.h>
 #include <wait.h>
@@ -68,35 +69,30 @@ static int builtin_fg(JobController *controller, Command *command) {
     size_t job_index = (size_t) (controller->number_of_jobs - 1);
     Job *job = controller->jobs[job_index];
 
-    signal(SIGTTOU, SIG_IGN);
-    if (tcsetpgrp(STDIN_FILENO, job->pid) == BAD_RESULT) {
-        perror("Couldn't set terminal foreground process group");
+
+    if (terminal_set_stdin(job->pid) == BAD_RESULT) {
         return CRASH;
     }
-    signal(SIGTTOU, SIG_DFL);
 
     job_kill(job, SIGCONT);
     int status;
     if (waitpid(job->pid, &status, WUNTRACED) != BAD_RESULT) {
         if (WIFSTOPPED(status)) {
             job->status = JOB_STOPPED;
-            job_print(job, stdout);
+            job_print(job, stdout, "");
         } else {
             job->status = JOB_DONE;
         }
     } else {
-        perror("Couldn't wait for child process termination22");
+        perror("Couldn't wait for child process termination");
     }
 
-    signal(SIGTTOU, SIG_IGN);
-    if (tcsetpgrp(STDIN_FILENO, getpgrp()) == BAD_RESULT) {
-        perror("Couldn't set terminal foreground process group");
+    if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
         return CRASH;
     }
 
-    signal(SIGTTOU, SIG_DFL);
     if (job->status & JOB_DONE) {
-        fprintf(stdout, "%s\n", job->command->arguments[0]);
+        fprintf(stdout, "%s\n", command_get_name(job->command));
         fflush(stdout);
         job_controller_remove_job_by_index(controller, job_index);
     }
@@ -112,6 +108,6 @@ static int builtin_bg(JobController *controller, Command *command) {
     Job *last_job = controller->jobs[controller->number_of_jobs - 1];
     job_kill(last_job, SIGCONT);
     last_job->status = JOB_RUNNING;
-    job_print(last_job, stdout);
+    job_print(last_job, stdout, "");
     return STOP;
 }

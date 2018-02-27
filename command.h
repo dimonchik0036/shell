@@ -44,11 +44,13 @@ struct CommandLine_St {
 typedef struct CommandLine_St CommandLine;
 
 
-Command *command_copy(Command const *command);
+Command *command_copy_for_job(Command const *command);
 
 void command_free(Command *command);
 
-char *command_get_string(Command *command);
+char *command_get_args(Command *command);
+
+char *command_get_name(Command *command);
 
 
 #endif //COMMAND_H

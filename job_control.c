@@ -18,7 +18,12 @@ JobController *job_controller_create() {
 }
 
 void job_controller_free(JobController *controller) {
-    free(controller); //TODO add memory cleanup for Job[]
+    size_t index;
+    for (index = 0; index < controller->number_of_jobs; ++index) {
+        job_free(controller->jobs[index]);
+    }
+
+    free(controller);
 }
 
 void job_controller_init(JobController *controller) {
@@ -36,9 +41,11 @@ jid_t job_controller_add_job(JobController *controller,
         return BAD_RESULT;
     }
 
-    Command *copy_of_command = command_copy(command);
+    Command *copy_of_command = command_copy_for_job(command);
     Job *job = job_create(controller->current_max_jid++, pid, copy_of_command, status);
     controller->jobs[controller->number_of_jobs++] = job;
+
+    fprintf(stderr, "\n[%d] %d\n", job->jid, (int) job->pid);
     return job->jid;
 }
 
@@ -76,6 +83,10 @@ int job_controller_release(JobController *controller) {
         kill(current_job->pid, SIGHUP);
     }
 
+    if (!controller->number_of_jobs) {
+        fprintf(stdout, "There are stopped jobs.\n");
+    }
+
     return EXIT_SUCCESS;
 }
 
@@ -83,8 +94,7 @@ void job_controller_print_all_jobs(JobController *controller) {
     size_t index;
     for (index = 0; index < controller->number_of_jobs; ++index) {
         Job *current_job = controller->jobs[index];
-        printf("[%d] %s %s\n", current_job->jid, job_get_status(current_job->status),
-               command_get_string(current_job->command));
+        job_print(current_job, stdout, "");
     }
 }
 
@@ -92,23 +102,23 @@ void job_controller_print_current_status(JobController *controller) {
     size_t index;
     for (index = 0; index < controller->number_of_jobs; ++index) {
         Job *current_job = controller->jobs[index];
+
         int status;
         pid_t answer = waitpid(-current_job->pid, &status, WNOHANG | WUNTRACED);
-        if (answer == BAD_RESULT) {
-            perror("shell: job controller");
-        } else if (!answer) {
+        if (!answer || answer == BAD_RESULT) {
             continue;
         } else if (WIFEXITED(status)) {
             current_job->status = JOB_DONE;
-            job_print(current_job, stdout);
-            job_controller_remove_job_by_index(controller, index);
-            --index;
         } else if (WIFSTOPPED(status)) {
             current_job->status = JOB_STOPPED;
-            job_print(current_job, stdout);
         } else if (WIFCONTINUED(status)) {
             current_job->status = JOB_RUNNING;
-            job_print(current_job, stdout);
+        }
+
+        job_print(current_job, stdout, "\n");
+        if (WIFEXITED(status)) {
+            job_controller_remove_job_by_index(controller, index);
+            --index;
         }
     }
 }

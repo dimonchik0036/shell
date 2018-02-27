@@ -5,6 +5,7 @@
 
 #include "execute.h"
 #include "builtin.h"
+#include "terminal.h"
 
 #include <fcntl.h>
 #include <wait.h>
@@ -91,7 +92,6 @@ static int execute_parent(JobController *controller,
                           CommandLine *command_line,
                           Command *command) {
     if (command->flag & IN_PIPE) {
-        setpgid(descendant_pid, 0);
         close(command_line->prev_out_pipe);
     }
 
@@ -102,16 +102,19 @@ static int execute_parent(JobController *controller,
         command_line->start_pipeline_index = command_line->current_pipeline_index;
     }
 
-    if (command->flag & BACKGROUND) {
-        jid_t jid = job_controller_add_job(controller, descendant_pid, command,
-                                           JOB_RUNNING);
-        fprintf(stderr, "[%d] Background process ID: %d\n", jid, (int) descendant_pid);
-        return CONTINUE;
-    }
-
     if (command->flag & OUT_PIPE) {
         return CONTINUE;
     }
+//
+//    if (setpgid(descendant_pid, 0) == BAD_RESULT) {
+//        perror("Couldn't set process group ID");
+//    }
+
+    if (command->flag & BACKGROUND) {
+        job_controller_add_job(controller, getpgid(descendant_pid), command, JOB_RUNNING);
+        return CONTINUE;
+    }
+
 
     int index;
     for (index = command_line->start_pipeline_index;
@@ -122,10 +125,7 @@ static int execute_parent(JobController *controller,
         int status = 0;
         if (waitpid(current_pid, &status, WUNTRACED) != BAD_RESULT) {
             if (WIFSTOPPED(status)) {
-                jid_t jid = job_controller_add_job(controller, current_pid, command,
-                                                   JOB_STOPPED);
-                fprintf(stderr, "[%d] Background process ID: %d\n", jid,
-                        (int) current_pid);
+                job_controller_add_job(controller, current_pid, command, JOB_STOPPED);
                 break;
             }
         } else {
@@ -133,13 +133,9 @@ static int execute_parent(JobController *controller,
         }
     }
 
-    signal(SIGTTOU, SIG_IGN);
-    if (tcsetpgrp(STDIN_FILENO, getpgrp()) == BAD_RESULT) {
-        perror("Couldn't set terminal foreground process group");
+    if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
         return CRASH;
     }
-
-    signal(SIGTTOU, SIG_DFL);
 
     return CONTINUE;
 }
@@ -149,19 +145,16 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
     signal(SIGTSTP, SIG_DFL);
     if (setpgid(0, (command->flag & IN_PIPE)
                    ? command_line->pids[command_line->start_pipeline_index]
-                   : 0)
-        == BAD_RESULT) {
+                   : 0) == BAD_RESULT) {
         perror("Couldn't set process group ID");
         return CRASH;
     }
 
     if (!(command->flag & BACKGROUND) && !(command->flag & IN_PIPE)) {
-        signal(SIGTTOU, SIG_IGN);
-        if (tcsetpgrp(STDIN_FILENO, getpgrp()) == BAD_RESULT) {
+        if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
             perror("Couldn't set terminal foreground process group");
             return CRASH;
         }
-        signal(SIGTTOU, SIG_DFL);
     }
 
     if (command->flag & BACKGROUND) {

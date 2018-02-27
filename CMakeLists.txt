@@ -19,4 +19,6 @@ add_executable(shell
                job.c
                job.h
                builtin.c
-               builtin.h)
+               builtin.h
+               terminal.c
+               terminal.h)
