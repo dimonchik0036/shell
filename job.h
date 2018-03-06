@@ -42,5 +42,7 @@ void job_killpg(Job *job, int signal);
 
 void job_print(Job *job, FILE *file, char *prefix);
 
+void job_wait(Job *job);
+
 
 #endif //JOB_H

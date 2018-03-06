@@ -33,15 +33,16 @@ static int system_exec(JobController *controller,
 int execute_command_line(JobController *controller,
                          CommandLine *command_line,
                          size_t number_of_commands) {
-    int command_index;
-    for (command_index = 0;
-         command_index < number_of_commands;
-         ++command_index) {
-        Command *current_command = &command_line->commands[command_index];
-        int answer = builtin_exec(controller, current_command);
-        switch (answer) {
+    int index_of_command;
+    for (index_of_command = 0;
+         index_of_command < number_of_commands;
+         ++index_of_command) {
+        Command *current_command = &command_line->commands[index_of_command];
+
+        int exit_code = builtin_exec(controller, current_command);
+        switch (exit_code) {
             case EXIT:
-                return answer;
+                return exit_code;
             case CONTINUE:
                 break;
             case STOP:
@@ -53,11 +54,11 @@ int execute_command_line(JobController *controller,
             continue;
         }
 
-        answer = system_exec(controller, command_line, current_command);
-        switch (answer) {
+        exit_code = system_exec(controller, command_line, current_command);
+        switch (exit_code) {
             case EXIT:
             case CRASH:
-                return answer;
+                return exit_code;
             default:
                 break;
         }
@@ -66,8 +67,8 @@ int execute_command_line(JobController *controller,
     return CONTINUE;
 }
 
-static int execute_conveer(JobController *controller,
-                           CommandLine *command_line) {
+static int execute_conveyor(JobController *controller,
+                            CommandLine *command_line) {
     Command *commands = command_line->commands;
 
     pid_t pid = fork();
@@ -92,7 +93,7 @@ static int execute_conveer(JobController *controller,
     signal(SIGINT, SIG_DFL);
     signal(SIGTSTP, SIG_DFL);
     if (setpgid(0, 0) == BAD_RESULT) {
-        perror("Couldn't set process group ID88");
+        perror("Couldn't set process group ID");
         return CRASH;
     }
 
@@ -159,7 +160,7 @@ static int system_exec(JobController *controller,
                        CommandLine *command_line,
                        Command *command) {
     if (command->flag & OUT_PIPE) {
-        return execute_conveer(controller, command_line);
+        return execute_conveyor(controller, command_line);
     }
 
     pid_t pid = fork();

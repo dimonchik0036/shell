@@ -4,6 +4,7 @@
 
 
 #include <signal.h>
+#include <wait.h>
 #include "job.h"
 
 
@@ -69,5 +70,20 @@ void job_print(Job *job, FILE *file, char *prefix) {
                 job->jid, job_get_status(job->status),
                 command_get_name(job->command),
                 command_get_args(job->command));
+    }
+}
+
+void job_wait(Job *job) {
+    int status;
+    pid_t wait_result = waitpid(job->pid, &status, WUNTRACED);
+    if (wait_result != BAD_RESULT) {
+        if (WIFSTOPPED(status)) {
+            job->status = JOB_STOPPED;
+            job_print(job, stdout, "");
+        } else {
+            job->status = JOB_DONE;
+        }
+    } else {
+        perror("Couldn't wait for child process termination");
     }
 }

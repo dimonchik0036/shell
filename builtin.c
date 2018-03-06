@@ -27,7 +27,8 @@ static size_t job_get_index(JobController *controller, char *str);
 
 
 int builtin_exec(JobController *controller, Command *command) {
-    char *command_name = command->arguments[0];
+    char *command_name = command_get_name(command);
+
     if (!strcmp(command_name, "cd")) {
         return builtin_cd(command);
     } else if (!strcmp(command_name, "jobs")) {
@@ -85,25 +86,16 @@ static int builtin_fg(JobController *controller, Command *command) {
     }
 
     job_killpg(job, SIGCONT);
-    int status;
-    if (waitpid(job->pid, &status, WUNTRACED) != BAD_RESULT) {
-        if (WIFSTOPPED(status)) {
-            job->status = JOB_STOPPED;
-            job_print(job, stdout, "");
-        } else {
-            job->status = JOB_DONE;
-        }
-    } else {
-        perror("Couldn't wait for child process termination");
-    }
+    job_wait(job);
 
-    if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
+    pid_t pgrp = getpgrp();
+    int exit_code = terminal_set_stdin(pgrp);
+    if (exit_code == BAD_RESULT) {
         return CRASH;
     }
 
     if (job->status & JOB_DONE) {
         fprintf(stdout, "%s\n", command_get_name(job->command));
-        fflush(stdout);
         job_controller_remove_job_by_index(controller, job_index);
     }
 
@@ -137,7 +129,8 @@ static int builtin_jkill(JobController *controller, Command *command) {
 
     size_t job_index = job_get_index(controller, command->arguments[1]);
     if (job_index >= controller->number_of_jobs) {
-        fprintf(stderr, "shell: jkill:  %s: no such job\n", command->arguments[1]);
+        fprintf(stderr, "shell: jkill:  %s: no such job\n",
+                command->arguments[1]);
         return CRASH;
     }
 
