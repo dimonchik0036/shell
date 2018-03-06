@@ -25,9 +25,11 @@ static int set_outfile(char *outfile, char addfile);
 
 static int use_dup2(int fd, int fd2, char *error);
 
-static int system_exec(JobController *controller,
-                       CommandLine *command_line,
-                       Command *command);
+static int set_redirects(CommandLine *command_line, Command *command);
+
+static int exec_command(JobController *controller,
+                        CommandLine *command_line,
+                        Command *command);
 
 
 int execute_command_line(JobController *controller,
@@ -54,7 +56,7 @@ int execute_command_line(JobController *controller,
             continue;
         }
 
-        exit_code = system_exec(controller, command_line, current_command);
+        exit_code = exec_command(controller, command_line, current_command);
         switch (exit_code) {
             case EXIT:
             case CRASH:
@@ -156,9 +158,9 @@ static int execute_conveyor(JobController *controller,
     exit(EXIT_SUCCESS);
 }
 
-static int system_exec(JobController *controller,
-                       CommandLine *command_line,
-                       Command *command) {
+static int exec_command(JobController *controller,
+                        CommandLine *command_line,
+                        Command *command) {
     if (command->flag & OUT_PIPE) {
         return execute_conveyor(controller, command_line);
     }
@@ -205,16 +207,19 @@ static int execute_parent(JobController *controller,
 static int execute_descendant(CommandLine *command_line, Command *command) {
     signal(SIGINT, SIG_DFL);
     signal(SIGTSTP, SIG_DFL);
-    if (setpgid(0, (command->flag & (IN_PIPE | OUT_PIPE))
-                   ? getppid()
-                   : 0) == BAD_RESULT) {
+
+    int exit_code = setpgid(0, (command->flag & (IN_PIPE | OUT_PIPE))
+                               ? getppid()
+                               : 0);
+    if (exit_code == BAD_RESULT) {
         perror("Couldn't set process group ID");
         return CRASH;
     }
 
-    if (!(command->flag & BACKGROUND) && !(command->flag & IN_PIPE)) {
-        if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
-            perror("Couldn't set terminal foreground process group");
+    if (!(command->flag & (BACKGROUND | IN_PIPE))) {
+        pid_t pgrp = getpgrp();
+        exit_code = terminal_set_stdin(pgrp);
+        if (exit_code == BAD_RESULT) {
             return CRASH;
         }
     }
@@ -224,6 +229,18 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
         signal(SIGQUIT, SIG_IGN);
     }
 
+    exit_code = set_redirects(command_line, command);
+    if (exit_code == CRASH) {
+        return exit_code;
+    }
+
+    execvp(command->arguments[0], command->arguments);
+
+    perror("Couldn't execute command");
+    return CRASH;
+}
+
+static int set_redirects(CommandLine *command_line, Command *command) {
     if ((command->flag & IN_FILE) && command->infile) {
         if (set_infile(command->infile) == CRASH) {
             return CRASH;
@@ -251,10 +268,8 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
             return CRASH;
         }
     }
-    execvp(command->arguments[0], command->arguments);
 
-    perror("Couldn't execute command");
-    return CRASH;
+    return EXIT_SUCCESS;
 }
 
 static int use_dup2(int fd, int fd2, char *error) {
