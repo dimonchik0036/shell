@@ -13,9 +13,8 @@
 
 
 static int execute_parent(JobController *controller,
-                          pid_t descendant_pid,
-                          CommandLine *command_line,
-                          Command *command);
+                         pid_t descendant_pid,
+                         Command *command);
 
 static int execute_descendant(CommandLine *command_line, Command *command);
 
@@ -26,6 +25,8 @@ static int set_outfile(char *outfile, char addfile);
 static int use_dup2(int fd, int fd2, char *error);
 
 static int set_redirects(CommandLine *command_line, Command *command);
+
+static int set_input_terminal();
 
 static int exec_command(JobController *controller,
                         CommandLine *command_line,
@@ -86,8 +87,7 @@ static int execute_conveyor(JobController *controller,
         }
 
         Command *result_command = command_concat(commands, current_index);
-        int answer = execute_parent(controller, pid, command_line,
-                                    result_command);
+        int answer = execute_parent(controller, pid, result_command);
         command_free(result_command);
         return answer;
     }
@@ -152,10 +152,10 @@ static int execute_conveyor(JobController *controller,
     }
 
     if (terminal_set_stdin(getpgid(getppid())) == BAD_RESULT) {
-        perror("Couldn't set terminal foreground process group");
+        return CRASH;
     }
 
-    exit(EXIT_SUCCESS);
+    return EXIT;
 }
 
 static int exec_command(JobController *controller,
@@ -173,14 +173,13 @@ static int exec_command(JobController *controller,
             perror("Couldn't create process");
             return CRASH;
         default:
-            return execute_parent(controller, pid, command_line, command);
+            return execute_parent(controller, pid, command);
     }
 }
 
 static int execute_parent(JobController *controller,
-                          pid_t descendant_pid,
-                          CommandLine *command_line,
-                          Command *command) {
+                         pid_t descendant_pid,
+                         Command *command) {
     if (command->flag & BACKGROUND) {
         job_controller_add_job(controller, descendant_pid, command,
                                JOB_RUNNING);
@@ -188,7 +187,8 @@ static int execute_parent(JobController *controller,
     }
 
     int status = 0;
-    if (waitpid(descendant_pid, &status, WUNTRACED) != BAD_RESULT) {
+    pid_t wait_result = waitpid(descendant_pid, &status, WUNTRACED);
+    if (wait_result != BAD_RESULT) {
         if (WIFSTOPPED(status)) {
             job_controller_add_job(controller, descendant_pid, command,
                                    JOB_STOPPED);
@@ -197,11 +197,22 @@ static int execute_parent(JobController *controller,
         perror("Couldn't wait for child process termination");
     }
 
-    if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
+    int exit_code = set_input_terminal();
+    if (exit_code == BAD_RESULT) {
         return CRASH;
     }
 
     return CONTINUE;
+}
+
+static int set_input_terminal() {
+    pid_t pgrp = getpgrp();
+    int exit_code = terminal_set_stdin(pgrp);
+    if (exit_code == BAD_RESULT) {
+        return exit_code;
+    }
+
+    return EXIT_SUCCESS;
 }
 
 static int execute_descendant(CommandLine *command_line, Command *command) {
@@ -217,8 +228,7 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
     }
 
     if (!(command->flag & (BACKGROUND | IN_PIPE))) {
-        pid_t pgrp = getpgrp();
-        exit_code = terminal_set_stdin(pgrp);
+        exit_code = set_input_terminal();
         if (exit_code == BAD_RESULT) {
             return CRASH;
         }
@@ -241,31 +251,34 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
 }
 
 static int set_redirects(CommandLine *command_line, Command *command) {
+    int exit_code;
     if ((command->flag & IN_FILE) && command->infile) {
-        if (set_infile(command->infile) == CRASH) {
-            return CRASH;
+        exit_code = set_infile(command->infile);
+        if (exit_code == CRASH) {
+            return exit_code;
         }
     }
 
     if ((command->flag & OUT_FILE) && command->outfile) {
-        if (set_outfile(command->outfile, command->appfile) == CRASH) {
-            return CRASH;
+        exit_code = set_outfile(command->outfile, command->appfile);
+        if (exit_code == CRASH) {
+            return exit_code;
         }
     }
 
     if (command->flag & IN_PIPE) {
-        if (use_dup2(command_line->prev_out_pipe, STDIN_FILENO,
-                     "Couldn't redirect input")
-            == CRASH) {
-            return CRASH;
+        exit_code = use_dup2(command_line->prev_out_pipe, STDIN_FILENO,
+                             "Couldn't redirect input");
+        if (exit_code == CRASH) {
+            return exit_code;
         }
     }
 
     if (command->flag & OUT_PIPE) {
-        if (use_dup2(command_line->pipe_des[1], STDOUT_FILENO,
-                     "Couldn't redirect output")
-            == CRASH) {
-            return CRASH;
+        exit_code = use_dup2(command_line->pipe_des[1], STDOUT_FILENO,
+                             "Couldn't redirect output");
+        if (exit_code == CRASH) {
+            return exit_code;
         }
     }
 
@@ -273,7 +286,8 @@ static int set_redirects(CommandLine *command_line, Command *command) {
 }
 
 static int use_dup2(int fd, int fd2, char *error) {
-    if (dup2(fd, fd2) == BAD_RESULT) {
+    int exit_code = dup2(fd, fd2);
+    if (exit_code == BAD_RESULT) {
         perror(error);
         close(fd);
         return CRASH;
