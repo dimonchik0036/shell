@@ -43,24 +43,16 @@ jid_t job_controller_add_job(JobController *controller,
     }
 
     Command *copy_of_command = command_copy_for_job(command);
-    Job *job = job_create(controller->current_max_jid++, pid, copy_of_command, status);
+    Job *job = job_create(controller->current_max_jid++, pid, copy_of_command,
+                          status);
     controller->jobs[controller->number_of_jobs++] = job;
 
     fprintf(stderr, "\n[%d] %d\n", job->jid, (int) job->pid);
     return job->jid;
 }
 
-int job_controller_remove_job_by_jid(JobController *controller, jid_t jid) {
-    //TODO do it
-    return EXIT_FAILURE;
-}
-
-int job_controller_remove_job_by_pid(JobController *controller, pid_t pid) {
-    //TODO do it
-    return EXIT_FAILURE;
-}
-
-int job_controller_remove_job_by_index(JobController *controller, size_t index) {
+int job_controller_remove_job_by_index(JobController *controller,
+                                       size_t index) {
     Job *current_job = controller->jobs[index];
 
     size_t last_index = (size_t) (controller->number_of_jobs - 1);
@@ -105,12 +97,11 @@ void job_controller_print_current_status(JobController *controller) {
         Job *current_job = controller->jobs[index];
 
         int status;
-//        printf("DEBUG1: M%d MG%d %d %d\n", getpid(), getpgrp(), current_job->pid, getpgid(current_job->pid));
         pid_t answer = waitpid(current_job->pid, &status, WNOHANG | WUNTRACED);
         if (!answer || answer == BAD_RESULT) {
             continue;
         } else if (WIFEXITED(status)) {
-                current_job->status = JOB_DONE;
+            current_job->status = JOB_DONE;
         } else if (WIFSTOPPED(status)) {
             current_job->status = JOB_STOPPED;
         } else if (WIFCONTINUED(status)) {
@@ -118,16 +109,11 @@ void job_controller_print_current_status(JobController *controller) {
         }
 
         job_print(current_job, stdout, "\n");
-//        printf("DEBUG2: %d\n", answer);
         if (WIFEXITED(status)) {
             job_controller_remove_job_by_index(controller, index);
             --index;
         }
     }
-
-//    if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
-//        perror("sdsds");
-//    }
 }
 
 size_t job_controller_search_job_by_jid(JobController *controller, jid_t jid) {

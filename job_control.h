@@ -37,10 +37,6 @@ jid_t job_controller_add_job(JobController *controller,
                              char status);
 
 
-int job_controller_remove_job_by_jid(JobController *controller, jid_t jid);
-
-int job_controller_remove_job_by_pid(JobController *controller, pid_t pid);
-
 int job_controller_remove_job_by_index(JobController *controller, size_t index);
 
 size_t job_controller_search_job_by_jid(JobController *controller, jid_t jid);
