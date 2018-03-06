@@ -38,6 +38,8 @@ char *job_get_status(char status);
 
 void job_kill(Job *job, int signal);
 
+void job_killpg(Job *job, int signal);
+
 void job_print(Job *job, FILE *file, char *prefix);
 
 

@@ -84,7 +84,7 @@ static int builtin_fg(JobController *controller, Command *command) {
         return CRASH;
     }
 
-    job_kill(job, SIGCONT);
+    job_killpg(job, SIGCONT);
     int status;
     if (waitpid(job->pid, &status, WUNTRACED) != BAD_RESULT) {
         if (WIFSTOPPED(status)) {
@@ -123,7 +123,7 @@ static int builtin_bg(JobController *controller, Command *command) {
     }
 
     Job *job = controller->jobs[job_index];
-    job_kill(job, SIGCONT);
+    job_killpg(job, SIGCONT);
     job->status = JOB_RUNNING;
     job_print(job, stdout, "");
     return STOP;
@@ -142,7 +142,7 @@ static int builtin_jkill(JobController *controller, Command *command) {
     }
 
     Job *job = controller->jobs[job_index];
-    job_kill(job, SIGKILL);
+    job_killpg(job, SIGKILL);
     fprintf(stdout, "Done\n");
     job_controller_remove_job_by_index(controller, job_index);
     return STOP;

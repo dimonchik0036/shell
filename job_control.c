@@ -4,6 +4,7 @@
 
 
 #include "job_control.h"
+#include "terminal.h"
 
 #include <wait.h>
 #include <signal.h>
@@ -104,11 +105,12 @@ void job_controller_print_current_status(JobController *controller) {
         Job *current_job = controller->jobs[index];
 
         int status;
-        pid_t answer = waitpid(-current_job->pid, &status, WNOHANG | WUNTRACED);
-        if (!answer || answer == BAD_RESULT || answer != current_job->pid) {
+//        printf("DEBUG1: M%d MG%d %d %d\n", getpid(), getpgrp(), current_job->pid, getpgid(current_job->pid));
+        pid_t answer = waitpid(current_job->pid, &status, WNOHANG | WUNTRACED);
+        if (!answer || answer == BAD_RESULT) {
             continue;
         } else if (WIFEXITED(status)) {
-            current_job->status = JOB_DONE;
+                current_job->status = JOB_DONE;
         } else if (WIFSTOPPED(status)) {
             current_job->status = JOB_STOPPED;
         } else if (WIFCONTINUED(status)) {
@@ -116,11 +118,16 @@ void job_controller_print_current_status(JobController *controller) {
         }
 
         job_print(current_job, stdout, "\n");
+//        printf("DEBUG2: %d\n", answer);
         if (WIFEXITED(status)) {
             job_controller_remove_job_by_index(controller, index);
             --index;
         }
     }
+
+//    if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
+//        perror("sdsds");
+//    }
 }
 
 size_t job_controller_search_job_by_jid(JobController *controller, jid_t jid) {

@@ -33,7 +33,7 @@ int parse_input_line(char *line, CommandLine *command_line) {
     char *string = line;
 
 
-    while (*string) {
+    while (*string != '\0') {
         if (number_of_command >= MAX_COMMANDS) {
             fprintf(stderr, "shell: number of commands (%d) exceeded\n", MAX_COMMANDS);
             return BAD_SYNTAX;

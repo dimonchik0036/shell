@@ -37,6 +37,10 @@ void job_kill(Job *job, int signal) {
     kill(job->pid, signal);
 }
 
+void job_killpg(Job *job, int signal) {
+    killpg(job->pid, signal);
+}
+
 char *job_get_status(char status) {
     switch (status) {
         case JOB_STOPPED:
