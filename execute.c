@@ -13,10 +13,24 @@
 
 
 static int execute_parent(JobController *controller,
-                         pid_t descendant_pid,
-                         Command *command);
+                          pid_t descendant_pid,
+                          Command *command);
 
 static int execute_descendant(CommandLine *command_line, Command *command);
+
+static int execute_conveyor(JobController *controller,
+                            CommandLine *command_line);
+
+static int execute_conveyor_main_parent(JobController *controller,
+                                        CommandLine *command_line,
+                                        pid_t descendant_pid);
+
+static void execute_conveyor_parent(CommandLine *command_line,
+                                    Command *command,
+                                    size_t index_of_begin_pipeline,
+                                    size_t index_of_end_pipeline);
+
+static int execute_conveyor_descendant(CommandLine *command_line);
 
 static int set_infile(char *infile);
 
@@ -36,11 +50,12 @@ static int exec_command(JobController *controller,
 int execute_command_line(JobController *controller,
                          CommandLine *command_line,
                          size_t number_of_commands) {
-    int index_of_command;
+    size_t index_of_command;
     for (index_of_command = 0;
          index_of_command < number_of_commands;
          ++index_of_command) {
         Command *current_command = &command_line->commands[index_of_command];
+        command_line->current_index_of_command = index_of_command;
 
         int exit_code = builtin_exec(controller, current_command);
         switch (exit_code) {
@@ -70,92 +85,112 @@ int execute_command_line(JobController *controller,
     return CONTINUE;
 }
 
-static int execute_conveyor(JobController *controller,
-                            CommandLine *command_line) {
+static int execute_conveyor_main_parent(JobController *controller,
+                                        CommandLine *command_line,
+                                        pid_t descendant_pid) {
     Command *commands = command_line->commands;
+    size_t index_of_begin_pipeline = command_line->current_index_of_command;
 
-    pid_t pid = fork();
-    if (pid) {
-        if (pid == BAD_PID) {
-            perror("Couldn't create process");
-            return CRASH;
-        }
-
-        size_t current_index = command_line->current_pipeline_index;
-        while (commands[current_index].flag & (IN_PIPE | OUT_PIPE)) {
-            ++current_index;
-        }
-
-        Command *result_command = command_concat(commands, current_index);
-        int answer = execute_parent(controller, pid, result_command);
-        command_free(result_command);
-        return answer;
+    size_t pipeline_len = 0;
+    size_t index = index_of_begin_pipeline;
+    while (commands[index].flag & (IN_PIPE | OUT_PIPE)) {
+        ++pipeline_len;
+        ++index;
     }
 
+    Command *result_command = command_concat(&commands[index_of_begin_pipeline],
+                                             pipeline_len);
+    int answer = execute_parent(controller, descendant_pid, result_command);
+    command_free(result_command);
+    return answer;
+}
+
+static void execute_conveyor_parent(CommandLine *command_line,
+                                    Command *command,
+                                    size_t index_of_begin_pipeline,
+                                    size_t index_of_end_pipeline) {
+    if (command->flag & IN_PIPE) {
+        close(command_line->prev_out_pipe);
+    }
+
+    close(command_line->pipe_des[1]);
+    command_line->prev_out_pipe = command_line->pipe_des[0];
+    if (command->flag & OUT_PIPE) {
+        return;
+    }
+
+    size_t number_of_children = index_of_end_pipeline - index_of_begin_pipeline;
+    size_t number_of_children_completed = 0;
+    while (number_of_children_completed <= number_of_children) {
+        int status = 0;
+        pid_t wait_result = waitpid(0, &status, WUNTRACED);
+        if (wait_result != BAD_RESULT) {
+            if (WIFEXITED(status)) {
+                ++number_of_children_completed;
+            }
+        } else {
+            perror("Couldn't wait for child process termination");
+        }
+    }
+}
+
+static int execute_conveyor_descendant(CommandLine *command_line) {
     signal(SIGINT, SIG_DFL);
     signal(SIGTSTP, SIG_DFL);
-    if (setpgid(0, 0) == BAD_RESULT) {
+    int exit_code = setpgid(0, 0);
+    if (exit_code == BAD_RESULT) {
         perror("Couldn't set process group ID");
         return CRASH;
     }
 
-    command_line->start_pipeline_index = command_line->current_pipeline_index;
+    Command *commands = command_line->commands;
+    size_t index_of_begin_pipeline = command_line->current_index_of_command;
 
-    size_t current_index;
-    for (current_index = command_line->current_pipeline_index;
-         commands[current_index].flag & (IN_PIPE | OUT_PIPE);
-         ++current_index) {
-        if (pipe(command_line->pipe_des) == BAD_RESULT) {
+    size_t current_index = index_of_begin_pipeline;
+    while (commands[current_index].flag & (IN_PIPE | OUT_PIPE)) {
+        Command *current_command = &commands[current_index];
+        exit_code = pipe(command_line->pipe_des);
+        if (exit_code == BAD_RESULT) {
             perror("Couldn't create pipe");
             return CRASH;
         }
 
-        Command *current_command = &commands[current_index];
-        command_line->current_pipeline_index = current_index;
-        pid_t pid2 = fork();
-        command_line->pids[command_line->current_pipeline_index] = pid2;
-
-        if (pid2 == 0) {
-            return execute_descendant(command_line, current_command);
-        } else {
-            if (pid2 == BAD_PID) {
+        pid_t pid = fork();
+        switch (pid) {
+            case BAD_PID:
                 perror("Couldn't create process");
                 return CRASH;
-            }
-
-            if (current_command->flag & IN_PIPE) {
-                close(command_line->prev_out_pipe);
-            }
-
-            close(command_line->pipe_des[1]);
-            command_line->prev_out_pipe = command_line->pipe_des[0];
-            if (current_command->flag & OUT_PIPE) {
-                continue;
-            }
-
-            int index;
-            for (index = command_line->start_pipeline_index;
-                 index <= command_line->current_pipeline_index;
-                 ++index) {
-                pid_t current_pid = command_line->pids[index];
-
-                int status = 0;
-                if (waitpid(current_pid, &status, WUNTRACED) != BAD_RESULT) {
-                    if (WIFSTOPPED(status)) {
-                        fprintf(stdout, "1FSFSF\n");
-                    }
-                } else {
-                    perror("Couldn't wait for child process termination");
-                }
-            }
+            case DESCENDANT_PID:
+                return execute_descendant(command_line, current_command);
+            default:
+                execute_conveyor_parent(command_line, current_command,
+                                        index_of_begin_pipeline, current_index);
         }
+
+        ++current_index;
     }
 
-    if (terminal_set_stdin(getpgid(getppid())) == BAD_RESULT) {
+    pid_t pgid = getpgid(getppid());
+    exit_code = terminal_set_stdin(pgid);
+    if (exit_code == BAD_RESULT) {
         return CRASH;
     }
 
     return EXIT;
+}
+
+static int execute_conveyor(JobController *controller,
+                            CommandLine *command_line) {
+    pid_t pid = fork();
+    switch (pid) {
+        case BAD_PID:
+            perror("Couldn't create process");
+            return CRASH;
+        case DESCENDANT_PID:
+            return execute_conveyor_descendant(command_line);
+        default:
+            return execute_conveyor_main_parent(controller, command_line, pid);
+    }
 }
 
 static int exec_command(JobController *controller,
@@ -178,8 +213,8 @@ static int exec_command(JobController *controller,
 }
 
 static int execute_parent(JobController *controller,
-                         pid_t descendant_pid,
-                         Command *command) {
+                          pid_t descendant_pid,
+                          Command *command) {
     if (command->flag & BACKGROUND) {
         job_controller_add_job(controller, descendant_pid, command,
                                JOB_RUNNING);

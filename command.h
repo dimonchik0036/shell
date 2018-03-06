@@ -34,11 +34,9 @@ typedef struct Command_St Command;
 
 struct CommandLine_St {
     Command commands[MAX_COMMANDS];
-    pid_t pids[MAX_COMMANDS];
-    size_t start_pipeline_index;
-    size_t current_pipeline_index;
     int prev_out_pipe;
     int pipe_des[2];
+    size_t current_index_of_command;
 };
 
 typedef struct CommandLine_St CommandLine;

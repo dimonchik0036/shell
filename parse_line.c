@@ -249,7 +249,5 @@ static void set_end(char **data) {
 }
 
 static void reset_command_line(CommandLine *command_line) {
-    command_line->start_pipeline_index = 0;
-    command_line->current_pipeline_index = 0;
     memset(command_line->commands, 0, sizeof(Command) * MAX_COMMANDS);
 }
