@@ -35,8 +35,8 @@ typedef struct Command_St Command;
 struct CommandLine_St {
     Command commands[MAX_COMMANDS];
     pid_t pids[MAX_COMMANDS];
-    int start_pipeline_index;
-    int current_pipeline_index;
+    size_t start_pipeline_index;
+    size_t current_pipeline_index;
     int prev_out_pipe;
     int pipe_des[2];
 };
@@ -44,13 +44,15 @@ struct CommandLine_St {
 typedef struct CommandLine_St CommandLine;
 
 
-Command *command_copy_for_job(Command const *command);
+Command *command_copy_for_job(const Command *command);
 
 void command_free(Command *command);
 
-char *command_get_args(Command *command);
+char *command_get_args(const Command *command);
 
-char *command_get_name(Command *command);
+char *command_get_name(const Command *command);
+
+Command *command_concat(const Command *commands, size_t count);
 
 
 #endif //COMMAND_H

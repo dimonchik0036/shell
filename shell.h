@@ -17,6 +17,8 @@
 #define TRUE 1
 #define FALSE 0
 
+#define END '\0'
+
 #define BAD_RESULT (-1)
 
 

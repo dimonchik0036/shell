@@ -34,11 +34,10 @@ int execute_command_line(JobController *controller,
                          CommandLine *command_line,
                          int number_of_commands) {
     int command_index;
-    command_line->start_pipeline_index = 0;
-    for (command_index = 0; command_index < number_of_commands; ++command_index) {
+    for (command_index = 0;
+         command_index < number_of_commands;
+         ++command_index) {
         Command *current_command = &command_line->commands[command_index];
-        command_line->current_pipeline_index = command_index;
-
         int answer = builtin_exec(controller, current_command);
         switch (answer) {
             case EXIT:
@@ -68,38 +67,25 @@ int execute_command_line(JobController *controller,
 }
 
 static int execute_conveer(JobController *controller,
-                           CommandLine *command_line,
-                           Command *command) {
+                          CommandLine *command_line) {
+    Command *commands = command_line->commands;
+
     pid_t pid = fork();
-    if (pid != 0) {
-        Command *last_command = command;
-        int current_index = command_line->current_pipeline_index;
-        for (; command_line->commands[current_index].flag & (IN_PIPE | OUT_PIPE);
-               ++current_index) {
-            last_command = &command_line->commands[current_index];
-        }
-
-        if (last_command->flag & BACKGROUND) {
-            job_controller_add_job(controller, pid, last_command, JOB_RUNNING);
-
-            return CONTINUE;
-        }
-
-        int status = 0;
-        if (waitpid(pid, &status, WUNTRACED) != BAD_RESULT) {
-            if (WIFSTOPPED(status)) {
-                job_controller_add_job(controller, pid, last_command, JOB_STOPPED);
-                return CONTINUE;
-            }
-        } else {
-            perror("Couldn't wait for child process termination");
+    if (pid) {
+        if (pid == BAD_PID) {
+            perror("Couldn't create process");
             return CRASH;
         }
 
-        if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
-            perror("sdsds");
+        size_t current_index = command_line->current_pipeline_index;
+        while (commands[current_index].flag & (IN_PIPE | OUT_PIPE)) {
+            ++current_index;
         }
-        return CONTINUE;
+
+        Command * result_command = command_concat(commands, current_index);
+        int answer = execute_parent(controller, pid, command_line, result_command);
+        command_free(result_command);
+        return answer;
     }
 
     signal(SIGINT, SIG_DFL);
@@ -109,27 +95,30 @@ static int execute_conveer(JobController *controller,
         return CRASH;
     }
 
-//    fprintf(stdout, "97 p%d %d\n", getpid(), getpgrp());
     command_line->start_pipeline_index = command_line->current_pipeline_index;
-    int current_index = command_line->current_pipeline_index;
-    for (; command_line->commands[current_index].flag & (IN_PIPE | OUT_PIPE);
-           ++current_index) {
+
+    size_t current_index;
+    for (current_index = command_line->current_pipeline_index;
+         commands[current_index].flag & (IN_PIPE | OUT_PIPE);
+         ++current_index) {
         if (pipe(command_line->pipe_des) == BAD_RESULT) {
             perror("Couldn't create pipe");
             return CRASH;
         }
 
-        Command *current_command = &command_line->commands[current_index];
+        Command *current_command = &commands[current_index];
         command_line->current_pipeline_index = current_index;
         pid_t pid2 = fork();
         command_line->pids[command_line->current_pipeline_index] = pid2;
 
         if (pid2 == 0) {
             return execute_descendant(command_line, current_command);
-        } else if (pid2 == -1) {
-            perror("Couldn't create process");
-            return CRASH;
         } else {
+            if (pid2 == BAD_PID) {
+                perror("Couldn't create process");
+                return CRASH;
+            }
+
             if (current_command->flag & IN_PIPE) {
                 close(command_line->prev_out_pipe);
             }
@@ -159,7 +148,7 @@ static int execute_conveer(JobController *controller,
     }
 
     if (terminal_set_stdin(getpgid(getppid())) == BAD_RESULT) {
-        perror("ALEEEEEEEEEEEEEERT 169\n");
+        perror("Couldn't set terminal foreground process group");
     }
 
     exit(EXIT_SUCCESS);
@@ -169,13 +158,10 @@ static int system_exec(JobController *controller,
                        CommandLine *command_line,
                        Command *command) {
     if (command->flag & OUT_PIPE) {
-        return execute_conveer(controller, command_line, command);
+        return execute_conveer(controller, command_line);
     }
 
-
     pid_t pid = fork();
-    command_line->pids[command_line->current_pipeline_index] = pid;
-
     switch (pid) {
         case DESCENDANT_PID:
             return execute_descendant(command_line, command);
@@ -191,42 +177,20 @@ static int execute_parent(JobController *controller,
                           pid_t descendant_pid,
                           CommandLine *command_line,
                           Command *command) {
-    if (command->flag & IN_PIPE) {
-        close(command_line->prev_out_pipe);
-    }
-
-    close(command_line->pipe_des[1]);
-    command_line->prev_out_pipe = command_line->pipe_des[0];
-
-    if (!(command->flag & IN_PIPE)) {
-        command_line->start_pipeline_index = command_line->current_pipeline_index;
-    }
-
-    if (command->flag & OUT_PIPE) {
-        return CONTINUE;
-    }
-
     if (command->flag & BACKGROUND) {
-        job_controller_add_job(controller, descendant_pid, command, JOB_RUNNING);
+        job_controller_add_job(controller, descendant_pid, command,
+                               JOB_RUNNING);
         return CONTINUE;
     }
 
-
-    int index;
-    for (index = command_line->start_pipeline_index;
-         index <= command_line->current_pipeline_index;
-         ++index) {
-        pid_t current_pid = command_line->pids[index];
-
-        int status = 0;
-        if (waitpid(current_pid, &status, WUNTRACED) != BAD_RESULT) {
-            if (WIFSTOPPED(status)) {
-                job_controller_add_job(controller, current_pid, command, JOB_STOPPED);
-                break;
-            }
-        } else {
-            perror("Couldn't wait for child process termination");
+    int status = 0;
+    if (waitpid(descendant_pid, &status, WUNTRACED) != BAD_RESULT) {
+        if (WIFSTOPPED(status)) {
+            job_controller_add_job(controller, descendant_pid, command,
+                                   JOB_STOPPED);
         }
+    } else {
+        perror("Couldn't wait for child process termination");
     }
 
     if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
@@ -245,8 +209,7 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
         perror("Couldn't set process group ID");
         return CRASH;
     }
-//    fprintf(stdout, "242 pp%d p%d g%d\n", getppid(), getpid(), getpgrp());
-//    fflush(stdout);
+
     if (!(command->flag & BACKGROUND) && !(command->flag & IN_PIPE)) {
         if (terminal_set_stdin(getpgrp()) == BAD_RESULT) {
             perror("Couldn't set terminal foreground process group");
@@ -272,14 +235,16 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
     }
 
     if (command->flag & IN_PIPE) {
-        if (use_dup2(command_line->prev_out_pipe, STDIN_FILENO, "Couldn't redirect input")
+        if (use_dup2(command_line->prev_out_pipe, STDIN_FILENO,
+                     "Couldn't redirect input")
             == CRASH) {
             return CRASH;
         }
     }
 
     if (command->flag & OUT_PIPE) {
-        if (use_dup2(command_line->pipe_des[1], STDOUT_FILENO, "Couldn't redirect output")
+        if (use_dup2(command_line->pipe_des[1], STDOUT_FILENO,
+                     "Couldn't redirect output")
             == CRASH) {
             return CRASH;
         }
