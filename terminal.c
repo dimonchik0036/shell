@@ -25,10 +25,11 @@ static int terminal_set(int fd,
                         void (*sig_handler_before)(int),
                         void (*sig_handler_after)(int)) {
     signal(sig, sig_handler_before);
-    if (tcsetpgrp(fd, pgrp) == BAD_RESULT) {
+    int exit_code = tcsetpgrp(fd, pgrp);
+    if (exit_code == BAD_RESULT) {
         perror("Couldn't set terminal foreground process group");
         signal(sig, sig_handler_after);
-        return BAD_RESULT;
+        return exit_code;
     }
 
     signal(sig, sig_handler_after);

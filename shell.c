@@ -29,17 +29,15 @@ int shell_run() {
     ssize_t number_of_read = prompt_line(buffer, sizeof(buffer));
     while (number_of_read > 0) {
         ssize_t number_of_commands = parse_input_line(buffer, &command_line);
-        if (number_of_commands > 0) {
-            int exit_code = execute_command_line(controller, &command_line,
-                                            (size_t) number_of_commands);
-            switch (exit_code) {
-                case CONTINUE:
-                    break;
-                case EXIT:
-                    return EXIT_SUCCESS;
-                default:
-                    return EXIT_FAILURE;
-            }
+        int exit_code = execute_command_line(controller, &command_line,
+                                             number_of_commands);
+        switch (exit_code) {
+            case CONTINUE:
+                break;
+            case EXIT:
+                return EXIT_SUCCESS;
+            default:
+                return EXIT_FAILURE;
         }
 
         job_controller_print_current_status(controller);

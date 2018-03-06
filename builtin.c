@@ -50,9 +50,12 @@ static int builtin_cd(Command *command) {
     if (command->arguments[1] && command->arguments[2]) {
         fprintf(stderr, "cd: too many arguments");
         return CRASH;
-    } else if (chdir(command->arguments[1]) == BAD_RESULT) {
-        perror("cd");
-        return CRASH;
+    } else {
+        int exit_code = chdir(command->arguments[1]);
+        if (exit_code == BAD_RESULT) {
+            perror("cd");
+            return CRASH;
+        }
     }
 
     return STOP;
@@ -81,7 +84,8 @@ static int builtin_fg(JobController *controller, Command *command) {
     }
 
     Job *job = controller->jobs[job_index];
-    if (terminal_set_stdin(job->pid) == BAD_RESULT) {
+    int exit_code = terminal_set_stdin(job->pid);
+    if (exit_code == BAD_RESULT) {
         return CRASH;
     }
 
@@ -89,7 +93,7 @@ static int builtin_fg(JobController *controller, Command *command) {
     job_wait(job);
 
     pid_t pgrp = getpgrp();
-    int exit_code = terminal_set_stdin(pgrp);
+    exit_code = terminal_set_stdin(pgrp);
     if (exit_code == BAD_RESULT) {
         return CRASH;
     }

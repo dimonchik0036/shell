@@ -49,7 +49,11 @@ static int exec_command(JobController *controller,
 
 int execute_command_line(JobController *controller,
                          CommandLine *command_line,
-                         size_t number_of_commands) {
+                         ssize_t number_of_commands) {
+    if (number_of_commands <= 0) {
+        return CONTINUE;
+    }
+
     size_t index_of_command;
     for (index_of_command = 0;
          index_of_command < number_of_commands;

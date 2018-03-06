@@ -7,7 +7,9 @@
 
 
 ssize_t prompt_line(char *buffer, size_t buffer_size) {
-    if (write(STDOUT_FILENO, PROMPT_LINE, strlen(PROMPT_LINE)) < 0) {
+    ssize_t number_of_write = write(STDOUT_FILENO, PROMPT_LINE,
+                                    strlen(PROMPT_LINE));
+    if (number_of_write < 0) {
         return BAD_RESULT;
     }
 
