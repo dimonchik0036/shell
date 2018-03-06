@@ -10,9 +10,9 @@
 
 #include "shell.h"
 #include "prompt_line.h"
+#include "job_control.h"
 #include "parse_line.h"
 #include "execute.h"
-#include "job_control.h"
 
 
 int main(int argc, char *argv[]) {
@@ -30,8 +30,9 @@ int shell_run() {
     while (number_of_read > 0) {
         ssize_t number_of_commands = parse_input_line(buffer, &command_line);
         if (number_of_commands > 0) {
-            switch (execute_command_line(controller, &command_line,
-                                         (size_t) number_of_commands)) {
+            int exit_code = execute_command_line(controller, &command_line,
+                                            (size_t) number_of_commands);
+            switch (exit_code) {
                 case CONTINUE:
                     break;
                 case EXIT:

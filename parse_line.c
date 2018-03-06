@@ -34,11 +34,11 @@ static int parse_add_command(char **data,
                              size_t *current_index_of_arguments,
                              size_t *number_of_command);
 
-static int parse_fill_commands(char **data,
-                               CommandLine *command_line,
-                               size_t *current_index_of_command,
-                               size_t *current_index_of_arguments,
-                               size_t *number_of_command);
+static int parse_tokens(char **data,
+                        CommandLine *command_line,
+                        size_t *current_index_of_command,
+                        size_t *current_index_of_arguments,
+                        size_t *number_of_command);
 
 static void go_to_next_delimiter(char **data);
 
@@ -72,18 +72,18 @@ ssize_t parse_input_line(char *input_data, CommandLine *command_line) {
             break;
         }
 
-        int answer = parse_fill_commands(&input_data, command_line,
-                                         &index_of_command,
-                                         &index_of_arguments,
-                                         &result_number_of_command);
-        if (answer == BAD_SYNTAX) {
-            return answer;
+        int exit_code = parse_tokens(&input_data, command_line,
+                                     &index_of_command,
+                                     &index_of_arguments,
+                                     &result_number_of_command);
+        if (exit_code == BAD_SYNTAX) {
+            return exit_code;
         }
     }
 
     if (result_number_of_command > 0) {
-        if (command_line->commands[result_number_of_command - 1].flag &
-            OUT_PIPE) {
+        if (command_line->commands[result_number_of_command - 1].flag
+            & OUT_PIPE) {
             PRINT_SYNTAX_ERROR(TOKEN_CONCAT_STR);
             return BAD_SYNTAX;
         }
@@ -92,11 +92,11 @@ ssize_t parse_input_line(char *input_data, CommandLine *command_line) {
     return result_number_of_command;
 }
 
-static int parse_fill_commands(char **data,
-                               CommandLine *command_line,
-                               size_t *current_index_of_command,
-                               size_t *current_index_of_arguments,
-                               size_t *number_of_command) {
+static int parse_tokens(char **data,
+                        CommandLine *command_line,
+                        size_t *current_index_of_command,
+                        size_t *current_index_of_arguments,
+                        size_t *number_of_command) {
     Command *current_command = &command_line->commands[*current_index_of_command];
 
     char token = **data;
