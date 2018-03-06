@@ -22,7 +22,7 @@
 
 int execute_command_line(JobController *controller,
                          CommandLine *command_line,
-                         int number_of_commands);
+                         size_t number_of_commands);
 
 
 #endif //EXECUTE_H

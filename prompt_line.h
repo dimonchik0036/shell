@@ -13,7 +13,7 @@
 #define PROMPT_LINE "(*_*)$>"
 
 
-ssize_t prompt_line(char *line, size_t line_size);
+ssize_t prompt_line(char *buffer, size_t buffer_size);
 
 
 #endif //PROMPT_LINE_H

@@ -32,7 +32,7 @@ static int system_exec(JobController *controller,
 
 int execute_command_line(JobController *controller,
                          CommandLine *command_line,
-                         int number_of_commands) {
+                         size_t number_of_commands) {
     int command_index;
     for (command_index = 0;
          command_index < number_of_commands;
@@ -67,7 +67,7 @@ int execute_command_line(JobController *controller,
 }
 
 static int execute_conveer(JobController *controller,
-                          CommandLine *command_line) {
+                           CommandLine *command_line) {
     Command *commands = command_line->commands;
 
     pid_t pid = fork();
@@ -82,8 +82,9 @@ static int execute_conveer(JobController *controller,
             ++current_index;
         }
 
-        Command * result_command = command_concat(commands, current_index);
-        int answer = execute_parent(controller, pid, command_line, result_command);
+        Command *result_command = command_concat(commands, current_index);
+        int answer = execute_parent(controller, pid, command_line,
+                                    result_command);
         command_free(result_command);
         return answer;
     }

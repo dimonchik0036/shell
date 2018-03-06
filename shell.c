@@ -25,27 +25,24 @@ int shell_run() {
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
 
-    char line[MAX_COMMAND_LINE];
-    ssize_t number_of_read;
-    for (number_of_read = prompt_line(line, sizeof(line));
-         number_of_read > 0;
-         number_of_read = prompt_line(line, sizeof(line))) {
-        int number_of_commands;
-        if ((number_of_commands = parse_input_line(line, &command_line)) <= 0) {
-            job_controller_print_current_status(controller);
-            continue;
-        }
-
-        switch (execute_command_line(controller, &command_line, number_of_commands)) {
-            case CONTINUE:
-                break;
-            case EXIT:
-                return EXIT_SUCCESS;
-            default:
-                return EXIT_FAILURE;
+    char buffer[MAX_COMMAND_LINE];
+    ssize_t number_of_read = prompt_line(buffer, sizeof(buffer));
+    while (number_of_read > 0) {
+        ssize_t number_of_commands = parse_input_line(buffer, &command_line);
+        if (number_of_commands > 0) {
+            switch (execute_command_line(controller, &command_line,
+                                         (size_t) number_of_commands)) {
+                case CONTINUE:
+                    break;
+                case EXIT:
+                    return EXIT_SUCCESS;
+                default:
+                    return EXIT_FAILURE;
+            }
         }
 
         job_controller_print_current_status(controller);
+        number_of_read = prompt_line(buffer, sizeof(buffer));
     }
 
     if (number_of_read < 0) {
