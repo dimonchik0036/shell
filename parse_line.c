@@ -84,7 +84,7 @@ ssize_t parse_input_line(char *input_data, CommandLine *command_line) {
     if (result_number_of_command > 0) {
         if (command_line->commands[result_number_of_command - 1].flag
             & OUT_PIPE) {
-            PRINT_SYNTAX_ERROR(TOKEN_CONCAT_STR);
+            PRINT_SYNTAX_ERROR(TOKEN_PIPELINE_STR);
             return BAD_SYNTAX;
         }
     }
@@ -112,7 +112,7 @@ static int parse_tokens(char **data,
         case TOKEN_SEPARATOR:
             return parse_separator(data, current_index_of_command,
                                    current_index_of_arguments);
-        case TOKEN_CONCAT:
+        case TOKEN_PIPELINE:
             return parse_concat(data, command_line, current_index_of_command,
                                 current_index_of_arguments);
         default:
@@ -137,7 +137,7 @@ static int parse_concat(char **data,
                         size_t *current_index_of_arguments) {
     if (*current_index_of_arguments == 0
         || *current_index_of_command + 1 == MAX_COMMANDS) {
-        PRINT_SYNTAX_ERROR(TOKEN_CONCAT_STR);
+        PRINT_SYNTAX_ERROR(TOKEN_PIPELINE_STR);
         return BAD_SYNTAX;
     }
 

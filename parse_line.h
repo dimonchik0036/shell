@@ -22,8 +22,8 @@
 #define TOKEN_OUTFILE '>'
 #define TOKEN_OUTFILE_STR ">"
 
-#define TOKEN_CONCAT '|'
-#define TOKEN_CONCAT_STR "|"
+#define TOKEN_PIPELINE '|'
+#define TOKEN_PIPELINE_STR "|"
 
 #define TOKEN_SEPARATOR ';'
 #define TOKEN_SEPARATOR_STR ";"
