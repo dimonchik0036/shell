@@ -1,5 +1,11 @@
 # About
-POSIX Shell
+POSIX Shell by [Dimonchik0036](https://github.com/Dimonchik0036)
+
+## Features
+* Run commands in the background
+* Job Control
+* Pipelining
+* Redirection of input / output
 
 # Build
 ```
