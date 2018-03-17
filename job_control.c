@@ -77,7 +77,7 @@ int job_controller_release(JobController *controller) {
     }
 
     if (controller->number_of_jobs) {
-        fprintf(stdout, "There are stopped jobs.\n");
+        printf("There are stopped jobs.\n");
     }
 
     return EXIT_SUCCESS;

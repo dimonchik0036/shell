@@ -348,7 +348,7 @@ static int set_infile(char *infile) {
 
 static int set_outfile(char *outfile, char addfile) {
     int flags = O_WRONLY;
-    if (addfile) {
+    if (addfile == TRUE) {
         flags |= O_APPEND | O_CREAT;
     } else {
         flags |= O_CREAT | O_TRUNC;

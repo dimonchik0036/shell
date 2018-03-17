@@ -8,7 +8,9 @@
 #include "terminal.h"
 
 #include <signal.h>
-#include <wait.h>
+
+
+#define EQUALS 0
 
 
 static int builtin_cd(Command *command);
@@ -29,17 +31,17 @@ static size_t job_get_index(JobController *controller, char *str);
 int builtin_exec(JobController *controller, Command *command) {
     char *command_name = command_get_name(command);
 
-    if (!strcmp(command_name, "cd")) {
+    if (strcmp(command_name, "cd") == EQUALS) {
         return builtin_cd(command);
-    } else if (!strcmp(command_name, "jobs")) {
+    } else if (strcmp(command_name, "jobs") == EQUALS) {
         return builtin_jobs(controller, command);
-    } else if (!strcmp(command_name, "fg")) {
+    } else if (strcmp(command_name, "fg") == EQUALS) {
         return builtin_fg(controller, command);
-    } else if (!strcmp(command_name, "bg")) {
+    } else if (strcmp(command_name, "bg") == EQUALS) {
         return builtin_bg(controller, command);
-    } else if (!strcmp(command_name, "jkill")) {
+    } else if (strcmp(command_name, "jkill") == EQUALS) {
         return builtin_jkill(controller, command);
-    } else if (!strcmp(command_name, "exit")) {
+    } else if (strcmp(command_name, "exit") == EQUALS) {
         return builtin_exit(controller);
     }
 
@@ -99,7 +101,7 @@ static int builtin_fg(JobController *controller, Command *command) {
     }
 
     if (job->status & JOB_DONE) {
-        fprintf(stdout, "%s\n", command_get_name(job->command));
+        printf("%s\n", command_get_name(job->command));
         job_controller_remove_job_by_index(controller, job_index);
     }
 
@@ -140,7 +142,7 @@ static int builtin_jkill(JobController *controller, Command *command) {
 
     Job *job = controller->jobs[job_index];
     job_killpg(job, SIGKILL);
-    fprintf(stdout, "Done\n");
+    printf("Done\n");
     job_controller_remove_job_by_index(controller, job_index);
     return STOP;
 }
