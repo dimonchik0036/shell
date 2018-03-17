@@ -100,14 +100,9 @@ void job_controller_print_current_status(JobController *controller) {
         pid_t answer = waitpid(current_job->pid, &status, WNOHANG | WUNTRACED);
         if (!answer || answer == BAD_RESULT) {
             continue;
-        } else if (WIFEXITED(status)) {
-            current_job->status = JOB_DONE;
-        } else if (WIFSTOPPED(status)) {
-            current_job->status = JOB_STOPPED;
-        } else if (WIFCONTINUED(status)) {
-            current_job->status = JOB_RUNNING;
         }
 
+        job_set_status(current_job, status);
         job_print(current_job, stdout, "\n");
         if (WIFEXITED(status)) {
             job_controller_remove_job_by_index(controller, index);

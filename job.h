@@ -32,6 +32,8 @@ Job *job_create(jid_t jid, pid_t pid, Command *command, char status);
 
 void job_free(Job *job);
 
+void job_set_status(Job *job, int status);
+
 void job_swap(Job **lhs, Job **rhs);
 
 char *job_get_status(char status);

@@ -53,7 +53,7 @@ char *job_get_status(char status) {
         case JOB_FAILED:
             return "Failed";
         default:
-            return "WTF?!";
+            return "Unexpected";
     }
 }
 
@@ -85,5 +85,19 @@ void job_wait(Job *job) {
         }
     } else {
         perror("Couldn't wait for child process termination");
+    }
+}
+
+void job_set_status(Job *job, int status) {
+    if (WIFEXITED(status)) {
+        if (WEXITSTATUS(status) != EXIT_SUCCESS) {
+            job->status = JOB_FAILED;
+        } else {
+            job->status = JOB_DONE;
+        }
+    } else if (WIFSTOPPED(status)) {
+        job->status = JOB_STOPPED;
+    } else if (WIFCONTINUED(status)) {
+        job->status = JOB_RUNNING;
     }
 }
