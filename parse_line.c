@@ -8,7 +8,12 @@
 
 #define PRINT_SYNTAX_ERROR(token) fprintf(stderr, "shell: syntax error near unexpected token '%s'\n", token)
 
+#define PRINT_SYNTAX_PIPELINE_ERROR(token) fprintf(stderr, "shell: syntax error in pipeline near token '%s'\n", token)
+
+
 static char *blank_skip(char *data);
+
+static int check_pipeline(const Command *command);
 
 static int parse_redirect_output(char **data, Command *command);
 
@@ -19,10 +24,10 @@ static int parse_background(char **data,
                             size_t *current_index_of_command,
                             size_t *current_index_of_arguments);
 
-static int parse_concat(char **data,
-                        CommandLine *command_line,
-                        size_t *current_index_of_command,
-                        size_t *current_index_of_arguments);
+static int parse_pipeline(char **data,
+                          CommandLine *command_line,
+                          size_t *current_index_of_command,
+                          size_t *current_index_of_arguments);
 
 static int parse_separator(char **data,
                            size_t *current_index_of_command,
@@ -45,6 +50,8 @@ static void go_to_next_delimiter(char **data);
 static void set_end(char **data);
 
 static void reset_command_line(CommandLine *command_line);
+
+static int check_command_line(CommandLine *command_line, size_t command_amount);
 
 inline int is_end(char const *data) {
     return *data == END;
@@ -76,20 +83,39 @@ ssize_t parse_input_line(char *input_data, CommandLine *command_line) {
                                      &index_of_command,
                                      &index_of_arguments,
                                      &result_number_of_command);
-        if (exit_code == BAD_SYNTAX) {
+        if (exit_code != SUCCESS) {
             return exit_code;
         }
     }
 
-    if (result_number_of_command > 0) {
-        if (command_line->commands[result_number_of_command - 1].flag
-            & OUT_PIPE) {
-            PRINT_SYNTAX_ERROR(TOKEN_PIPELINE_STR);
+    int answer = check_command_line(command_line, result_number_of_command);
+    if (answer != SUCCESS) {
+        return BAD_SYNTAX;
+    }
+
+    return result_number_of_command;
+}
+
+static int check_command_line(CommandLine *command_line,
+                              size_t command_amount) {
+    if (command_amount == 0) {
+        return SUCCESS;
+    }
+
+    size_t index;
+    for (index = 0; index < command_amount; ++index) {
+        int answer = check_pipeline(&command_line->commands[index]);
+        if (answer != SUCCESS) {
             return BAD_SYNTAX;
         }
     }
 
-    return result_number_of_command;
+    if (command_line->commands[command_amount - 1].flag & OUT_PIPE) {
+        PRINT_SYNTAX_ERROR(TOKEN_PIPELINE_STR);
+        return BAD_SYNTAX;
+    }
+
+    return SUCCESS;
 }
 
 static int parse_tokens(char **data,
@@ -113,8 +139,8 @@ static int parse_tokens(char **data,
             return parse_separator(data, current_index_of_command,
                                    current_index_of_arguments);
         case TOKEN_PIPELINE:
-            return parse_concat(data, command_line, current_index_of_command,
-                                current_index_of_arguments);
+            return parse_pipeline(data, command_line, current_index_of_command,
+                                  current_index_of_arguments);
         default:
             return parse_add_command(data, current_command,
                                      current_index_of_command,
@@ -131,10 +157,24 @@ static char *blank_skip(char *data) {
     return data;
 }
 
-static int parse_concat(char **data,
-                        CommandLine *command_line,
-                        size_t *current_index_of_command,
-                        size_t *current_index_of_arguments) {
+static int check_pipeline(const Command *command) {
+    if (command->flag & IN_FILE && command->flag & IN_PIPE) {
+        PRINT_SYNTAX_PIPELINE_ERROR(TOKEN_INFILE_STR);
+        return BAD_SYNTAX;
+    }
+
+    if (command->flag & OUT_FILE && command->flag & OUT_PIPE) {
+        PRINT_SYNTAX_PIPELINE_ERROR(TOKEN_OUTFILE_STR);
+        return BAD_SYNTAX;
+    }
+
+    return SUCCESS;
+}
+
+static int parse_pipeline(char **data,
+                          CommandLine *command_line,
+                          size_t *current_index_of_command,
+                          size_t *current_index_of_arguments) {
     if (*current_index_of_arguments == 0
         || *current_index_of_command + 1 == MAX_COMMANDS) {
         PRINT_SYNTAX_ERROR(TOKEN_PIPELINE_STR);
