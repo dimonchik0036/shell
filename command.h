@@ -37,6 +37,7 @@ struct CommandLine_St {
     int prev_out_pipe;
     int pipe_des[2];
     size_t current_index_of_command;
+    size_t last_command_in_pipeline;
 };
 
 typedef struct CommandLine_St CommandLine;
