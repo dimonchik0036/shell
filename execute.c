@@ -21,6 +21,11 @@ static int execute_descendant(CommandLine *command_line, Command *command);
 static int execute_conveyor(JobController *controller,
                             CommandLine *command_line);
 
+static void prepare_conveyor(CommandLine *command_line);
+
+static int processing_conveyor_command(CommandLine *command_line,
+                                       size_t current_index);
+
 static int execute_conveyor_main_parent(JobController *controller,
                                         CommandLine *command_line,
                                         pid_t descendant_pid);
@@ -39,6 +44,8 @@ static int set_outfile(char *outfile, char addfile);
 static int use_dup2(int fd, int fd2, char *error);
 
 static int set_redirects(CommandLine *command_line, Command *command);
+
+static void command_set_background_signal(const Command *command);
 
 static int set_input_terminal();
 
@@ -92,15 +99,10 @@ int execute_command_line(JobController *controller,
 static int execute_conveyor_main_parent(JobController *controller,
                                         CommandLine *command_line,
                                         pid_t descendant_pid) {
-    Command *commands = command_line->commands;
     size_t index_of_begin_pipeline = command_line->current_index_of_command;
-
-    size_t pipeline_len = 0;
-    size_t index = index_of_begin_pipeline;
-    while (commands[index].flag & (IN_PIPE | OUT_PIPE)) {
-        ++pipeline_len;
-        ++index;
-    }
+    Command *commands = command_line->commands;
+    size_t pipeline_len = command_line->last_command_in_pipeline
+                          - index_of_begin_pipeline;
 
     Command *result_command = command_concat(&commands[index_of_begin_pipeline],
                                              pipeline_len);
@@ -129,18 +131,70 @@ static void execute_conveyor_parent(CommandLine *command_line,
         int status = 0;
         pid_t wait_result = waitpid(0, &status, WUNTRACED);
         if (wait_result != BAD_RESULT) {
-            if (WIFEXITED(status)) {
-                ++number_of_children_completed;
-            }
+            ++number_of_children_completed;
         } else {
             perror("Couldn't wait for child process termination");
         }
     }
 }
 
-static int execute_conveyor_descendant(CommandLine *command_line) {
-    signal(SIGINT, SIG_DFL);
+static int processing_conveyor_command(CommandLine *command_line,
+                                       size_t current_index) {
+    Command *current_command = &command_line->commands[current_index];
+    int exit_code = pipe(command_line->pipe_des);
+    if (exit_code == BAD_RESULT) {
+        perror("Couldn't create pipe");
+        return CRASH;
+    }
+
+    size_t index_of_begin_pipeline = command_line->current_index_of_command;
+    pid_t pid = fork();
+    switch (pid) {
+        case BAD_PID:
+            perror("Couldn't create process");
+            return CRASH;
+        case DESCENDANT_PID:
+            return execute_descendant(command_line, current_command);
+        default:
+            execute_conveyor_parent(command_line, current_command,
+                                    index_of_begin_pipeline, current_index);
+    }
+
+    return CONTINUE;
+}
+
+static void prepare_conveyor(CommandLine *command_line) {
+    Command *commands = command_line->commands;
+    size_t index_of_begin_pipeline = command_line->current_index_of_command;
+
+    size_t index = index_of_begin_pipeline;
+    while (commands[index].flag & (IN_PIPE | OUT_PIPE)) {
+        ++index;
+    }
+    size_t last_index = index - 1;
+
+    command_line->last_command_in_pipeline = last_index;
+    char background_flag = (char) (commands[last_index].flag & BACKGROUND);
+    for (index = index_of_begin_pipeline; index < last_index; ++index) {
+        commands[index].flag |= background_flag;
+    }
+}
+
+static void command_set_background_signal(const Command *command) {
+    if (command->flag & BACKGROUND) {
+        signal(SIGINT, SIG_IGN);
+        signal(SIGQUIT, SIG_IGN);
+    } else {
+        signal(SIGINT, SIG_DFL);
+    }
+
     signal(SIGTSTP, SIG_DFL);
+}
+
+static int execute_conveyor_descendant(CommandLine *command_line) {
+    Command *first_command = &command_line->commands[command_line->current_index_of_command];
+    command_set_background_signal(first_command);
+
     int exit_code = setpgid(0, 0);
     if (exit_code == BAD_RESULT) {
         perror("Couldn't set process group ID");
@@ -148,34 +202,17 @@ static int execute_conveyor_descendant(CommandLine *command_line) {
     }
 
     Command *commands = command_line->commands;
-    size_t index_of_begin_pipeline = command_line->current_index_of_command;
-
-    size_t current_index = index_of_begin_pipeline;
+    size_t current_index = command_line->current_index_of_command;
     while (commands[current_index].flag & (IN_PIPE | OUT_PIPE)) {
-        Command *current_command = &commands[current_index];
-        exit_code = pipe(command_line->pipe_des);
-        if (exit_code == BAD_RESULT) {
-            perror("Couldn't create pipe");
-            return CRASH;
-        }
-
-        pid_t pid = fork();
-        switch (pid) {
-            case BAD_PID:
-                perror("Couldn't create process");
-                return CRASH;
-            case DESCENDANT_PID:
-                return execute_descendant(command_line, current_command);
-            default:
-                execute_conveyor_parent(command_line, current_command,
-                                        index_of_begin_pipeline, current_index);
+        exit_code = processing_conveyor_command(command_line, current_index);
+        if (exit_code != CONTINUE) {
+            return exit_code;
         }
 
         ++current_index;
     }
 
-    pid_t pgid = getpgid(getppid());
-    exit_code = terminal_set_stdin(pgid);
+    exit_code = terminal_set_parent();
     if (exit_code == BAD_RESULT) {
         return CRASH;
     }
@@ -185,6 +222,8 @@ static int execute_conveyor_descendant(CommandLine *command_line) {
 
 static int execute_conveyor(JobController *controller,
                             CommandLine *command_line) {
+    prepare_conveyor(command_line);
+
     pid_t pid = fork();
     switch (pid) {
         case BAD_PID:
@@ -255,8 +294,7 @@ static int set_input_terminal() {
 }
 
 static int execute_descendant(CommandLine *command_line, Command *command) {
-    signal(SIGINT, SIG_DFL);
-    signal(SIGTSTP, SIG_DFL);
+    command_set_background_signal(command);
 
     int exit_code = setpgid(0, (command->flag & (IN_PIPE | OUT_PIPE))
                                ? getppid()
@@ -273,10 +311,6 @@ static int execute_descendant(CommandLine *command_line, Command *command) {
         }
     }
 
-    if (command->flag & BACKGROUND) {
-        signal(SIGINT, SIG_IGN);
-        signal(SIGQUIT, SIG_IGN);
-    }
 
     exit_code = set_redirects(command_line, command);
     if (exit_code == CRASH) {
