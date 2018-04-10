@@ -64,6 +64,11 @@ static int builtin_cd(Command *command) {
 }
 
 static int builtin_jobs(JobController *controller, Command *command) {
+    if (command->arguments[1] != NULL) {
+        fprintf(stderr, "shell: jobs: too many arguments\n");
+        return CRASH;
+    }
+
     job_controller_print_all_jobs(controller);
     return STOP;
 }
@@ -76,6 +81,11 @@ static int builtin_exit(JobController *controller) {
 static int builtin_fg(JobController *controller, Command *command) {
     if (!controller->number_of_jobs) {
         fprintf(stderr, "shell: fg: current: no such job\n");
+        return CRASH;
+    }
+
+    if (command->arguments[1] != NULL && command->arguments[2] != NULL) {
+        fprintf(stderr, "shell: fg: too many arguments\n");
         return CRASH;
     }
 
@@ -114,6 +124,11 @@ static int builtin_bg(JobController *controller, Command *command) {
         return CRASH;
     }
 
+    if (command->arguments[1] != NULL && command->arguments[2] != NULL) {
+        fprintf(stderr, "shell: bg: too many arguments\n");
+        return CRASH;
+    }
+
     size_t job_index = job_get_index(controller, command->arguments[1]);
     if (job_index >= controller->number_of_jobs) {
         fprintf(stderr, "shell: bg:  %s: no such job\n", command->arguments[1]);
@@ -130,6 +145,11 @@ static int builtin_bg(JobController *controller, Command *command) {
 static int builtin_jkill(JobController *controller, Command *command) {
     if (!controller->number_of_jobs) {
         fprintf(stderr, "shell: jkill: current: no such job\n");
+        return CRASH;
+    }
+
+    if (command->arguments[1] != NULL && command->arguments[2] != NULL) {
+        fprintf(stderr, "shell: jkill: too many arguments\n");
         return CRASH;
     }
 
@@ -150,6 +170,13 @@ static int builtin_jkill(JobController *controller, Command *command) {
 static size_t job_get_index(JobController *controller, char *str) {
     size_t job_index = (size_t) (controller->number_of_jobs - 1);
     if (str) {
+        size_t curr_index = 0;
+        for (curr_index = 0; curr_index < strlen(str); ++curr_index) {
+            if (!isdigit(str[curr_index])) {
+                return (size_t) controller->number_of_jobs;
+            }
+        }
+
         int jid = atoi(str);
         if (jid) {
             job_index = job_controller_search_job_by_jid(controller, jid);
