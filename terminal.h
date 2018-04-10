@@ -11,5 +11,7 @@
 
 int terminal_set_stdin(pid_t pgrp);
 
+int terminal_set_parent();
+
 
 #endif //TERMINAL_H

@@ -19,6 +19,17 @@ int terminal_set_stdin(pid_t pgrp) {
     return terminal_set(STDIN_FILENO, pgrp, SIGTTOU, SIG_IGN, SIG_DFL);
 }
 
+int terminal_set_parent() {
+    pid_t ppid = getppid();
+    pid_t pgid = getpgid(ppid);
+    int exit_code = terminal_set_stdin(pgid);
+    if (exit_code == BAD_RESULT) {
+        return CRASH;
+    }
+
+    return exit_code;
+}
+
 static int terminal_set(int fd,
                         pid_t pgrp,
                         int sig,
