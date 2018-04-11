@@ -9,6 +9,14 @@
 
 
 Job *job_create(jid_t jid, pid_t pid, Command *command, char status) {
+    return job_create_conveyor(jid, pid, command, status, 1);
+}
+
+Job *job_create_conveyor(jid_t jid,
+                         pid_t pid,
+                         Command *command,
+                         char status,
+                         size_t jobs_count) {
     Job *job = malloc(sizeof(Job));
     check_memory(job);
 
@@ -16,6 +24,7 @@ Job *job_create(jid_t jid, pid_t pid, Command *command, char status) {
     job->status = status;
     job->jid = jid;
     job->pid = pid;
+    job->count = jobs_count;
     return job;
 }
 

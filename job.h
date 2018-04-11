@@ -21,6 +21,7 @@ typedef int jid_t;
 struct Job_St {
     jid_t jid;
     pid_t pid;
+    size_t count;
     Command *command;
     char status;
 };
@@ -29,6 +30,8 @@ typedef struct Job_St Job;
 
 
 Job *job_create(jid_t jid, pid_t pid, Command *command, char status);
+
+Job *job_create_conveyor(jid_t jid, pid_t pid, Command *command, char status, size_t jobs_count);
 
 void job_free(Job *job);
 

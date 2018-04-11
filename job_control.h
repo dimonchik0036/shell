@@ -36,6 +36,11 @@ jid_t job_controller_add_job(JobController *controller,
                              Command const *command,
                              char status);
 
+jid_t job_controller_add_conveyor(JobController *controller,
+                                  pid_t pid,
+                                  Command const *command,
+                                  char status,
+                                  size_t job_count);
 
 int job_controller_remove_job_by_index(JobController *controller, size_t index);
 

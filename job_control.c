@@ -37,14 +37,22 @@ jid_t job_controller_add_job(JobController *controller,
                              pid_t pid,
                              Command const *command,
                              char status) {
+    return job_controller_add_conveyor(controller, pid, command, status, 1);
+}
+
+jid_t job_controller_add_conveyor(JobController *controller,
+                                  pid_t pid,
+                                  Command const *command,
+                                  char status,
+                                  size_t job_count) {
     if (controller->number_of_jobs >= JOB_LIMIT - 1) {
         fprintf(stderr, "shell: number of jobs (%d) exceeded\n", JOB_LIMIT);
         return BAD_RESULT;
     }
 
     Command *copy_of_command = command_copy_for_job(command);
-    Job *job = job_create(controller->current_max_jid++, pid, copy_of_command,
-                          status);
+    Job *job = job_create_conveyor(controller->current_max_jid++, pid, copy_of_command,
+                          status, job_count);
     controller->jobs[controller->number_of_jobs++] = job;
 
     fprintf(stderr, "\n[%d] %d\n", job->jid, (int) job->pid);
@@ -73,7 +81,7 @@ int job_controller_release(JobController *controller) {
     size_t index;
     for (index = 0; index < controller->number_of_jobs; ++index) {
         Job *current_job = controller->jobs[index];
-        kill(current_job->pid, SIGHUP);
+        killpg(current_job->pid, SIGHUP);
     }
 
     if (controller->number_of_jobs) {
@@ -97,8 +105,13 @@ void job_controller_print_current_status(JobController *controller) {
         Job *current_job = controller->jobs[index];
 
         int status;
-        pid_t answer = waitpid(current_job->pid, &status, WNOHANG | WUNTRACED);
-        if (!answer || answer == BAD_RESULT) {
+        pid_t answer = waitpid(-current_job->pid, &status, WNOHANG | WUNTRACED);
+        while (answer != 0 && answer != BAD_RESULT) {
+            --current_job->count;
+            answer = waitpid(-current_job->pid, &status, WNOHANG | WUNTRACED);
+        }
+
+        if (answer == 0) {
             continue;
         }
 
