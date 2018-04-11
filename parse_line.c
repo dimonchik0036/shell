@@ -53,7 +53,7 @@ static void reset_command_line(CommandLine *command_line);
 
 static int check_command_line(CommandLine *command_line, size_t command_amount);
 
-inline int is_end(char const *data) {
+static int is_end(char const *data) {
     return *data == END;
 }
 
