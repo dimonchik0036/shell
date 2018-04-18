@@ -182,10 +182,7 @@ static int processing_conveyor_command(CommandLine *command_line,
             break;
     }
 
-    exit_code = setpgid(pid, command_line->main_process);
-    CHECK_ON_ERROR(exit_code, BAD_RESULT,
-                   "Couldn't set process group from parent")
-
+    setpgid(pid, command_line->main_process);
     processing_conveyor_parent(command_line, current_command);
     return CONTINUE;
 }
